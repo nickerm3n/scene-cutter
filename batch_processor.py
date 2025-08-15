@@ -1,49 +1,45 @@
 #!/usr/bin/env python3
 """
-Обновленный pipeline для обработки видео из CSV файла
-Читает CSV, скачивает видео через конвертер, обрабатывает через scene detector
+Скрипт для пакетной обработки ссылок из CSV файла
+Читает playlist.csv и конвертирует все m3u8 ссылки
 """
 
 import os
 import sys
 import csv
-import argparse
 import subprocess
-import json
-import shutil
+import argparse
 from pathlib import Path
 from datetime import datetime
 import time
 import re
 
 
-class VideoPipeline:
-    def __init__(self, csv_file: str = "playlist.csv", output_dir: str = None, keep_temp: bool = False):
+class BatchProcessor:
+    def __init__(self, csv_file: str = "playlist.csv", output_dir: str = None):
         """
-        Инициализация pipeline
+        Инициализация процессора
         
-        :param csv_file: Путь к CSV файлу с модулями
-        :param output_dir: Директория для результатов
-        :param keep_temp: Сохранять ли промежуточные файлы
+        :param csv_file: Путь к CSV файлу
+        :param output_dir: Директория для сохранения результатов
         """
         self.csv_file = Path(csv_file)
-        self.keep_temp = keep_temp
         
         # Проверяем существование файла
         if not self.csv_file.exists():
             raise FileNotFoundError(f"CSV файл не найден: {csv_file}")
         
-        # Создаем главную директорию для результатов
+        # Создаем директорию для результатов
         if output_dir:
             self.output_dir = Path(output_dir)
         else:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.output_dir = Path(f"pipeline_output_{timestamp}")
+            self.output_dir = Path(f"batch_output_{timestamp}")
         
         self.output_dir.mkdir(exist_ok=True)
         
         # Лог файл
-        self.log_file = self.output_dir / "pipeline.log"
+        self.log_file = self.output_dir / "batch_processing.log"
         
         # Статистика
         self.total_modules = 0
@@ -51,32 +47,16 @@ class VideoPipeline:
         self.failed_modules = []
         self.skipped_modules = []
         
-        # Настройки по умолчанию
-        self.config = {
-            'conversion': {
-                'codec': 'copy',
-                'quality': 23
-            },
-            'scene_detection': {
-                'threshold': 5.0,
-                'min_scene_len': 0.5,
-                'detector': 'content',
-                'extract_frames': True,
-                'frame_type': 'middle',
-                'extract_clips': False,
-                'generate_html': True,
-                'split_equal': None
-            }
-        }
-        
         self._init_logging()
     
     def _init_logging(self):
         """Инициализация логирования"""
         self.log_messages = []
-        self._log(f"Pipeline запущен: {datetime.now()}")
+        self._log(f"="*60)
+        self._log(f"Batch Processor запущен: {datetime.now()}")
         self._log(f"CSV файл: {self.csv_file}")
         self._log(f"Выходная директория: {self.output_dir}")
+        self._log(f"="*60)
     
     def _log(self, message: str):
         """Логирование сообщений"""
@@ -189,9 +169,9 @@ class VideoPipeline:
             self._log(f"❌ Ошибка при чтении CSV: {str(e)}")
             return []
     
-    def step1_convert_module(self, module: dict) -> bool:
+    def convert_module(self, module: dict) -> bool:
         """
-        Шаг 1: Конвертация модуля через m3u8_converter
+        Конвертация одного модуля
         
         :param module: Словарь с информацией о модуле
         :return: Успешность конвертации
@@ -201,8 +181,7 @@ class VideoPipeline:
         filename = module['filename']
         
         self._log(f"\n{'='*50}")
-        self._log(f"🎬 ШАГ 1: КОНВЕРТАЦИЯ МОДУЛЯ")
-        self._log(f"   Модуль: {module_name}")
+        self._log(f"🎬 Обработка модуля: {module_name}")
         self._log(f"   Ссылка: {link[:100]}...")
         
         # Создаем поддиректорию для модуля
@@ -214,7 +193,8 @@ class VideoPipeline:
         
         # Проверяем, не был ли файл уже обработан
         if output_file.exists() and output_file.stat().st_size > 0:
-            self._log(f"✓ Видео уже существует, пропускаем конвертацию: {output_file.name}")
+            self._log(f"✓ Файл уже существует, пропускаем: {output_file.name}")
+            self.skipped_modules.append(module_name)
             return True
         
         # Формируем команду для m3u8_converter.py
@@ -223,12 +203,8 @@ class VideoPipeline:
             "m3u8_converter.py",
             link,
             "-o", str(output_file),
-            "--filename", filename,
-            "--codec", self.config['conversion']['codec']
+            "--filename", filename
         ]
-        
-        if self.config['conversion']['codec'] != 'copy':
-            cmd.extend(["--quality", str(self.config['conversion']['quality'])])
         
         self._log(f"   Выходной файл: {output_file}")
         self._log(f"   Запускаем конвертер...")
@@ -250,11 +226,23 @@ class VideoPipeline:
                 # Проверяем, что файл создан
                 if output_file.exists() and output_file.stat().st_size > 0:
                     size_mb = output_file.stat().st_size / (1024 * 1024)
-                    self._log(f"✅ Конвертация успешна за {elapsed_time:.1f}с")
+                    self._log(f"✅ Успешно конвертирован за {elapsed_time:.1f}с")
                     self._log(f"   Размер файла: {size_mb:.2f} MB")
+                    
+                    # Сохраняем информацию о модуле
+                    info_file = module_dir / "module_info.txt"
+                    with open(info_file, 'w', encoding='utf-8') as f:
+                        f.write(f"Module: {module_name}\n")
+                        f.write(f"Link: {link}\n")
+                        f.write(f"Output: {output_file.name}\n")
+                        f.write(f"Size: {size_mb:.2f} MB\n")
+                        f.write(f"Processing time: {elapsed_time:.1f}s\n")
+                        f.write(f"Processed at: {datetime.now()}\n")
+                    
                     return True
                 else:
                     self._log(f"❌ Файл не был создан")
+                    self.failed_modules.append(module_name)
                     return False
             else:
                 self._log(f"❌ Ошибка при конвертации (код: {result.returncode})")
@@ -262,211 +250,44 @@ class VideoPipeline:
                     error_lines = result.stderr.strip().split('\n')[-5:]  # Последние 5 строк ошибки
                     for line in error_lines:
                         self._log(f"   {line}")
+                self.failed_modules.append(module_name)
                 return False
                 
         except subprocess.TimeoutExpired:
             self._log(f"❌ Таймаут при конвертации (более 30 минут)")
+            self.failed_modules.append(module_name)
             return False
         except Exception as e:
             self._log(f"❌ Ошибка: {str(e)}")
-            return False
-    
-    def step2_detect_scenes(self, module: dict) -> bool:
-        """
-        Шаг 2: Обработка сцен через scene_detector
-        
-        :param module: Словарь с информацией о модуле
-        :return: Успешность обработки сцен
-        """
-        module_name = module['module']
-        filename = module['filename']
-        
-        self._log(f"\n{'='*50}")
-        self._log(f"🔍 ШАГ 2: ОБРАБОТКА СЦЕН")
-        self._log(f"   Модуль: {module_name}")
-        
-        # Пути к файлам
-        module_dir = self.output_dir / filename
-        video_file = module_dir / f"{filename}.mp4"
-        scenes_dir = module_dir / "scenes"
-        
-        # Проверяем существование видео
-        if not video_file.exists():
-            self._log(f"❌ Видео файл не найден: {video_file}")
-            return False
-        
-        # Проверяем, не были ли сцены уже обработаны
-        if scenes_dir.exists() and any(scenes_dir.iterdir()):
-            self._log(f"✓ Сцены уже обработаны, пропускаем: {scenes_dir}")
-            return True
-        
-        # Формируем команду для scene_detector.py
-        cmd = [
-            sys.executable,
-            "scene_detector.py",
-            str(video_file),
-            "-o", str(scenes_dir),
-            "--threshold", str(self.config['scene_detection']['threshold']),
-            "--min-scene-len", str(self.config['scene_detection']['min_scene_len']),
-            "--detector", self.config['scene_detection']['detector']
-        ]
-        
-        # Добавляем опциональные параметры
-        if self.config['scene_detection'].get('split_equal'):
-            cmd.extend(["--split-equal", str(self.config['scene_detection']['split_equal'])])
-        
-        if self.config['scene_detection']['extract_frames']:
-            cmd.append("--extract-frames")
-            cmd.extend(["--frame-type", self.config['scene_detection']['frame_type']])
-        
-        if self.config['scene_detection']['extract_clips']:
-            cmd.append("--extract-clips")
-        
-        if self.config['scene_detection']['generate_html']:
-            cmd.append("--html")
-        
-        self._log(f"   Видео файл: {video_file}")
-        self._log(f"   Директория сцен: {scenes_dir}")
-        self._log(f"   Запускаем детектор сцен...")
-        
-        try:
-            # Запускаем детектор
-            start_time = time.time()
-            
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=1800  # 30 минут таймаут
-            )
-            
-            elapsed_time = time.time() - start_time
-            
-            # Выводим результат
-            if result.stdout:
-                for line in result.stdout.strip().split('\n'):
-                    self._log(f"   {line}")
-            
-            if result.returncode == 0:
-                self._log(f"✅ Обработка сцен завершена за {elapsed_time:.1f}с")
-                
-                # Проверяем результаты
-                self._check_scene_results(scenes_dir)
-                return True
-            else:
-                self._log(f"❌ Ошибка при обработке сцен (код: {result.returncode})")
-                if result.stderr:
-                    error_lines = result.stderr.strip().split('\n')[-5:]
-                    for line in error_lines:
-                        self._log(f"   {line}")
-                return False
-                
-        except subprocess.TimeoutExpired:
-            self._log(f"❌ Таймаут при обработке сцен (более 30 минут)")
-            return False
-        except Exception as e:
-            self._log(f"❌ Ошибка: {str(e)}")
-            return False
-    
-    def _check_scene_results(self, scenes_dir: Path):
-        """Проверка результатов обработки сцен"""
-        if not scenes_dir.exists():
-            return
-        
-        # Читаем метаданные
-        metadata_file = scenes_dir / "scenes_metadata.json"
-        if metadata_file.exists():
-            with open(metadata_file, 'r') as f:
-                metadata = json.load(f)
-                total_scenes = metadata.get('total_scenes', 0)
-                self._log(f"\n📊 Статистика сцен:")
-                self._log(f"   Найдено сцен: {total_scenes}")
-        
-        # Подсчитываем файлы
-        frames_dir = scenes_dir / "frames"
-        clips_dir = scenes_dir / "clips"
-        
-        if frames_dir.exists():
-            frame_count = len(list(frames_dir.glob("*.jpg")))
-            self._log(f"   Извлечено кадров: {frame_count}")
-        
-        if clips_dir.exists():
-            clip_count = len(list(clips_dir.glob("*.mp4")))
-            self._log(f"   Извлечено клипов: {clip_count}")
-        
-        # Проверяем HTML отчет
-        html_file = scenes_dir / "summary.html"
-        if html_file.exists():
-            self._log(f"   📄 HTML отчет: {html_file}")
-    
-    def process_module(self, module: dict) -> bool:
-        """
-        Полная обработка одного модуля
-        
-        :param module: Словарь с информацией о модуле
-        :return: Успешность обработки
-        """
-        module_name = module['module']
-        
-        self._log(f"\n{'='*60}")
-        self._log(f"📦 ОБРАБОТКА МОДУЛЯ: {module_name}")
-        self._log(f"{'='*60}")
-        
-        # Шаг 1: Конвертация
-        if not self.step1_convert_module(module):
-            self._log(f"❌ Ошибка на шаге конвертации")
             self.failed_modules.append(module_name)
             return False
-        
-        # Шаг 2: Обработка сцен
-        if not self.step2_detect_scenes(module):
-            self._log(f"❌ Ошибка на шаге обработки сцен")
-            self.failed_modules.append(module_name)
-            return False
-        
-        self._log(f"✅ Модуль успешно обработан")
-        self.processed_modules += 1
-        return True
-    
-    def cleanup(self):
-        """Очистка временных файлов"""
-        if not self.keep_temp:
-            self._log("\n🧹 Удаляем временные файлы...")
-            
-            # Удаляем конвертированные видео файлы
-            for module_dir in self.output_dir.iterdir():
-                if module_dir.is_dir():
-                    video_files = list(module_dir.glob("*.mp4"))
-                    for video_file in video_files:
-                        try:
-                            os.remove(video_file)
-                            self._log(f"   Удален: {video_file.name}")
-                        except Exception as e:
-                            self._log(f"   Ошибка при удалении {video_file.name}: {e}")
     
     def generate_report(self):
         """Генерация финального отчета"""
-        report_file = self.output_dir / "pipeline_report.txt"
+        report_file = self.output_dir / "processing_report.txt"
         
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write("="*60 + "\n")
-            f.write("ОТЧЕТ О ВЫПОЛНЕНИИ PIPELINE\n")
+            f.write("ОТЧЕТ О ПАКЕТНОЙ ОБРАБОТКЕ\n")
             f.write("="*60 + "\n\n")
             
             f.write(f"Время выполнения: {datetime.now()}\n")
             f.write(f"CSV файл: {self.csv_file}\n")
             f.write(f"Выходная директория: {self.output_dir}\n\n")
             
-            f.write("КОНФИГУРАЦИЯ:\n")
-            f.write(json.dumps(self.config, indent=2, ensure_ascii=False))
-            f.write("\n\n")
-            
             f.write("СТАТИСТИКА:\n")
             f.write("-"*40 + "\n")
             f.write(f"Всего модулей: {self.total_modules}\n")
             f.write(f"Успешно обработано: {self.processed_modules}\n")
-            f.write(f"Пропущено: {len(self.skipped_modules)}\n")
+            f.write(f"Пропущено (уже существуют): {len(self.skipped_modules)}\n")
             f.write(f"Ошибки: {len(self.failed_modules)}\n\n")
+            
+            if self.skipped_modules:
+                f.write("ПРОПУЩЕННЫЕ МОДУЛИ:\n")
+                f.write("-"*40 + "\n")
+                for module in self.skipped_modules:
+                    f.write(f"  - {module}\n")
+                f.write("\n")
             
             if self.failed_modules:
                 f.write("МОДУЛИ С ОШИБКАМИ:\n")
@@ -478,26 +299,18 @@ class VideoPipeline:
             f.write("ПОДРОБНЫЙ ЛОГ:\n")
             f.write("-"*40 + "\n")
             for log_entry in self.log_messages:
-                f.write(log_entry + '\n')
+                f.write(log_entry + "\n")
         
         self._log(f"\n📋 Отчет сохранен: {report_file}")
     
-    def update_config(self, config_dict: dict):
-        """Обновление конфигурации"""
-        for key, value in config_dict.items():
-            if key in self.config and isinstance(value, dict):
-                self.config[key].update(value)
-            else:
-                self.config[key] = value
-    
-    def run(self, start_from: int = 0, max_modules: int = None) -> bool:
+    def run(self, start_from: int = 0, max_modules: int = None):
         """
-        Запуск полного pipeline
+        Запуск пакетной обработки
         
         :param start_from: С какого модуля начать (0-based index)
         :param max_modules: Максимальное количество модулей для обработки
         """
-        self._log("\n🚀 ЗАПУСК PIPELINE")
+        self._log("\n🚀 ЗАПУСК ПАКЕТНОЙ ОБРАБОТКИ")
         
         # Читаем CSV
         modules = self.read_csv()
@@ -525,8 +338,9 @@ class VideoPipeline:
             self._log(f"\n{'='*50}")
             self._log(f"📦 Прогресс: {i}/{self.total_modules}")
             
-            if not self.process_module(module):
-                self._log(f"❌ Ошибка при обработке модуля {i}")
+            if self.convert_module(module):
+                if module['module'] not in self.skipped_modules:
+                    self.processed_modules += 1
             
             # Показываем промежуточную статистику
             if i % 5 == 0:  # Каждые 5 модулей
@@ -541,7 +355,7 @@ class VideoPipeline:
         total_time = time.time() - start_time
         
         self._log(f"\n{'='*60}")
-        self._log("✨ PIPELINE ЗАВЕРШЕН!")
+        self._log("✨ ОБРАБОТКА ЗАВЕРШЕНА!")
         self._log(f"{'='*60}")
         self._log(f"\n📊 Итоговая статистика:")
         self._log(f"   Всего модулей: {self.total_modules}")
@@ -553,10 +367,6 @@ class VideoPipeline:
         if self.processed_modules > 0:
             avg_time_per_module = total_time / self.processed_modules
             self._log(f"   Среднее время на модуль: {self._format_time(avg_time_per_module)}")
-        
-        # Очистка (если нужно)
-        if not self.keep_temp:
-            self.cleanup()
         
         # Генерируем отчет
         self.generate_report()
@@ -581,7 +391,7 @@ class VideoPipeline:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Pipeline для обработки видео из CSV файла",
+        description="Пакетная обработка m3u8 ссылок из CSV файла",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Формат CSV файла:
@@ -591,25 +401,22 @@ def main():
 
 Примеры использования:
   # Обработать все модули из playlist.csv
-  python pipeline.py
+  python batch_processor.py
   
   # Использовать другой CSV файл
-  python pipeline.py -f my_playlist.csv
+  python batch_processor.py -f my_playlist.csv
   
   # Указать директорию для результатов
-  python pipeline.py -o my_results
+  python batch_processor.py -o my_videos
   
-  # Начать с определенного модуля
-  python pipeline.py --start-from 5
+  # Начать с определенного модуля (полезно при возобновлении)
+  python batch_processor.py --start-from 5
   
   # Обработать только первые N модулей
-  python pipeline.py --max 10
+  python batch_processor.py --max 10
   
-  # С настройкой порога детекции сцен
-  python pipeline.py --threshold 10
-  
-  # С извлечением клипов и сохранением временных файлов
-  python pipeline.py --extract-clips --keep-temp
+  # Комбинация параметров
+  python batch_processor.py --start-from 10 --max 5
         """
     )
     
@@ -638,123 +445,14 @@ def main():
         help="Максимальное количество модулей для обработки"
     )
     
-    # Параметры конвертации
-    parser.add_argument(
-        "--codec",
-        choices=['copy', 'libx264', 'libx265'],
-        default='copy',
-        help="Видео кодек для конвертации (по умолчанию: copy)"
-    )
-    
-    parser.add_argument(
-        "--quality",
-        type=int,
-        default=23,
-        help="Качество видео при перекодировании (0-51, по умолчанию: 23)"
-    )
-    
-    # Параметры детекции сцен
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=5.0,
-        help="Порог детекции сцен (1-100, по умолчанию: 5)"
-    )
-    
-    parser.add_argument(
-        "--min-scene-len",
-        type=float,
-        default=0.5,
-        help="Минимальная длина сцены в секундах (по умолчанию: 0.5)"
-    )
-    
-    parser.add_argument(
-        "--detector",
-        choices=['content', 'adaptive'],
-        default='content',
-        help="Тип детектора сцен (по умолчанию: content)"
-    )
-    
-    parser.add_argument(
-        "--split-equal",
-        type=int,
-        metavar="N",
-        help="Разбить на N равных частей вместо детекции"
-    )
-    
-    # Параметры извлечения
-    parser.add_argument(
-        "--extract-frames",
-        action="store_true",
-        default=True,
-        help="Извлекать кадры из сцен (по умолчанию: да)"
-    )
-    
-    parser.add_argument(
-        "--no-extract-frames",
-        dest="extract_frames",
-        action="store_false",
-        help="Не извлекать кадры"
-    )
-    
-    parser.add_argument(
-        "--frame-type",
-        choices=['first', 'middle', 'last', 'best'],
-        default='middle',
-        help="Тип кадра для извлечения (по умолчанию: middle)"
-    )
-    
-    parser.add_argument(
-        "--extract-clips",
-        action="store_true",
-        help="Извлекать видео клипы для каждой сцены"
-    )
-    
-    parser.add_argument(
-        "--no-html",
-        dest="generate_html",
-        action="store_false",
-        default=True,
-        help="Не генерировать HTML отчет"
-    )
-    
-    parser.add_argument(
-        "--keep-temp",
-        action="store_true",
-        help="Сохранить промежуточные файлы (конвертированные видео)"
-    )
-    
     args = parser.parse_args()
     
     try:
-        # Создаем pipeline
-        pipeline = VideoPipeline(
-            args.file,
-            args.output,
-            args.keep_temp
-        )
+        # Создаем процессор
+        processor = BatchProcessor(args.file, args.output)
         
-        # Обновляем конфигурацию
-        config = {
-            'conversion': {
-                'codec': args.codec,
-                'quality': args.quality
-            },
-            'scene_detection': {
-                'threshold': args.threshold,
-                'min_scene_len': args.min_scene_len,
-                'detector': args.detector,
-                'extract_frames': args.extract_frames,
-                'frame_type': args.frame_type,
-                'extract_clips': args.extract_clips,
-                'generate_html': args.generate_html,
-                'split_equal': args.split_equal
-            }
-        }
-        pipeline.update_config(config)
-        
-        # Запускаем pipeline
-        success = pipeline.run(
+        # Запускаем обработку
+        success = processor.run(
             start_from=args.start_from,
             max_modules=args.max
         )
