@@ -1,31 +1,31 @@
-# Course Parser - Система обработки видео курсов
+# Course Parser - Video Course Processing System
 
-Обновленная система для автоматической обработки видео из CSV файлов с поддержкой конвертации m3u8 и детекции сцен.
+Updated system for automatic video processing from CSV files with m3u8 conversion and scene detection support.
 
-## Возможности
+## Features
 
-- 📁 Чтение списка видео из CSV файла
-- 🎬 Конвертация m3u8 ссылок в MP4 видео
-- 🔍 Автоматическое обнаружение сцен в видео
-- 📸 Извлечение ключевых кадров из каждой сцены
-- 📄 Генерация HTML отчетов
-- 📊 Подробная статистика и логирование
+- 📁 Read video list from CSV file
+- 🎬 Convert m3u8 links to MP4 video
+- 🔍 Automatic scene detection in video
+- 📸 Extract key frames from each scene
+- 📄 Generate HTML reports
+- 📊 Detailed statistics and logging
 
-## Структура файлов
+## File Structure
 
 ```
 course-parser/
-├── playlist.csv              # CSV файл с модулями и ссылками
-├── pipeline.py               # Главный скрипт pipeline
-├── m3u8_converter.py         # Конвертер m3u8 в MP4
-├── scene_detector.py         # Детектор сцен
-├── batch_processor.py        # Пакетный процессор (устарел)
-└── README.md                 # Эта документация
+├── playlist.csv              # CSV file with modules and links
+├── pipeline.py               # Main pipeline script
+├── m3u8_converter.py         # m3u8 to MP4 converter
+├── scene_detector.py         # Scene detector
+├── batch_processor.py        # Batch processor (deprecated)
+└── README.md                 # This documentation
 ```
 
-## Формат CSV файла
+## CSV File Format
 
-Создайте файл `playlist.csv` в следующем формате:
+Create a `playlist.csv` file in the following format:
 
 ```csv
 Module,Link
@@ -33,37 +33,37 @@ Module,Link
 "8. Advanced API Usage","https://example.com/video2.m3u8"
 ```
 
-## Использование
+## Usage
 
-### Базовый запуск
+### Basic Launch
 
 ```bash
-# Обработать все модули из playlist.csv
+# Process all modules from playlist.csv
 python3 pipeline.py
 ```
 
-### Продвинутые опции
+### Advanced Options
 
 ```bash
-# Использовать другой CSV файл
+# Use different CSV file
 python3 pipeline.py -f my_playlist.csv
 
-# Указать директорию для результатов
+# Specify directory for results
 python3 pipeline.py -o my_results
 
-# Начать с определенного модуля (полезно при возобновлении)
+# Start from specific module (useful for resuming)
 python3 pipeline.py --start-from 5
 
-# Обработать только первые N модулей
+# Process only first N modules
 python3 pipeline.py --max 10
 
-# Настройка детекции сцен
+# Configure scene detection threshold
 python3 pipeline.py --threshold 10 --min-scene-len 1.0
 
-# Извлечение клипов и сохранение временных файлов
+# Extract clips and keep temporary files
 python3 pipeline.py --extract-clips --keep-temp
 
-# Полная настройка
+# Full configuration
 python3 pipeline.py \
   -f my_playlist.csv \
   -o results \
@@ -74,72 +74,72 @@ python3 pipeline.py \
   --keep-temp
 ```
 
-## Параметры
+## Parameters
 
-### Основные параметры
+### Main Parameters
 
-- `-f, --file` - Путь к CSV файлу (по умолчанию: playlist.csv)
-- `-o, --output` - Директория для результатов
-- `--start-from` - С какого модуля начать (0-based)
-- `--max` - Максимальное количество модулей для обработки
+- `-f, --file` - Path to CSV file (default: playlist.csv)
+- `-o, --output` - Directory for results
+- `--start-from` - Which module to start from (0-based)
+- `--max` - Maximum number of modules to process
 
-### Параметры конвертации
+### Conversion Parameters
 
-- `--codec` - Видео кодек (copy, libx264, libx265, по умолчанию: copy)
-- `--quality` - Качество видео при перекодировании (0-51, по умолчанию: 23)
+- `--codec` - Video codec (copy, libx264, libx265, default: copy)
+- `--quality` - Video quality when re-encoding (0-51, default: 23)
 
-### Параметры детекции сцен
+### Scene Detection Parameters
 
-- `--threshold` - Порог детекции сцен (1-100, по умолчанию: 5)
-- `--min-scene-len` - Минимальная длина сцены в секундах (по умолчанию: 0.5)
-- `--detector` - Тип детектора (content, adaptive, по умолчанию: content)
-- `--split-equal` - Разбить на N равных частей вместо детекции
+- `--threshold` - Scene detection threshold (1-100, default: 5)
+- `--min-scene-len` - Minimum scene length in seconds (default: 0.5)
+- `--detector` - Detector type (content, adaptive, default: content)
+- `--split-equal` - Split into N equal parts instead of detection
 
-### Параметры извлечения
+### Extraction Parameters
 
-- `--extract-frames` - Извлекать кадры из сцен (по умолчанию: да)
-- `--frame-type` - Тип кадра (first, middle, last, best, по умолчанию: middle)
-- `--extract-clips` - Извлекать видео клипы для каждой сцены
-- `--no-html` - Не генерировать HTML отчет
-- `--keep-temp` - Сохранить промежуточные файлы (конвертированные видео)
+- `--extract-frames` - Extract frames from scenes (default: yes)
+- `--frame-type` - Frame type (first, middle, last, best, default: middle)
+- `--extract-clips` - Extract video clips for each scene
+- `--no-html` - Don't generate HTML report
+- `--keep-temp` - Keep temporary files (converted videos)
 
-## Структура результатов
+## Results Structure
 
-После выполнения pipeline создается следующая структура:
+After pipeline execution, the following structure is created:
 
 ```
 pipeline_output_YYYYMMDD_HHMMSS/
 ├── Module_Name_1/
-│   ├── Module_Name_1.mp4          # Конвертированное видео (если --keep-temp)
+│   ├── Module_Name_1.mp4          # Converted video (if --keep-temp)
 │   └── scenes/
-│       ├── frames/                 # Извлеченные кадры
+│       ├── frames/                 # Extracted frames
 │       │   ├── scene_001_00h00m00s.jpg
 │       │   ├── scene_002_00h01m19s.jpg
 │       │   └── ...
-│       ├── clips/                  # Видео клипы (если --extract-clips)
-│       ├── scenes_metadata.json    # Метаданные сцен
-│       └── summary.html           # HTML отчет
+│       ├── clips/                  # Video clips (if --extract-clips)
+│       ├── scenes_metadata.json    # Scene metadata
+│       └── summary.html           # HTML report
 ├── Module_Name_2/
 │   └── ...
-├── pipeline.log                   # Подробный лог выполнения
-└── pipeline_report.txt            # Финальный отчет
+├── pipeline.log                   # Detailed execution log
+└── pipeline_report.txt            # Final report
 ```
 
-## Примеры использования
+## Usage Examples
 
-### Обработка одного модуля для тестирования
+### Process one module for testing
 
 ```bash
 python3 pipeline.py --max 1
 ```
 
-### Возобновление обработки с модуля 5
+### Resume processing from module 5
 
 ```bash
 python3 pipeline.py --start-from 5
 ```
 
-### Обработка с настройками для лекций
+### Process with lecture settings
 
 ```bash
 python3 pipeline.py \
@@ -151,47 +151,47 @@ python3 pipeline.py \
   --keep-temp
 ```
 
-### Обработка с разбивкой на равные части
+### Process with equal splitting
 
 ```bash
 python3 pipeline.py --split-equal 20
 ```
 
-## Требования
+## Requirements
 
 - Python 3.7+
 - FFmpeg
 - PySceneDetect
 - OpenCV
 
-### Установка зависимостей
+### Install Dependencies
 
 ```bash
 # FFmpeg (macOS)
 brew install ffmpeg
 
-# Python зависимости
+# Python dependencies
 pip install scenedetect[opencv] opencv-python
 ```
 
-## Логирование
+## Logging
 
-Система создает подробные логи:
+The system creates detailed logs:
 
-- `pipeline.log` - Подробный лог выполнения
-- `pipeline_report.txt` - Финальный отчет со статистикой
-- Консольный вывод с прогрессом в реальном времени
+- `pipeline.log` - Detailed execution log
+- `pipeline_report.txt` - Final report with statistics
+- Console output with real-time progress
 
-## Обработка ошибок
+## Error Handling
 
-- Система продолжает работу даже при ошибках в отдельных модулях
-- Подробная информация об ошибках записывается в лог
-- Возможность возобновления с любого модуля
-- Таймауты для предотвращения зависания
+- System continues working even with errors in individual modules
+- Detailed error information is written to log
+- Ability to resume from any module
+- Timeouts to prevent hanging
 
-## Производительность
+## Performance
 
-- Параллельная обработка не поддерживается (для стабильности)
-- Рекомендуется обрабатывать не более 10-20 модулей за раз
-- Время обработки зависит от размера видео и настроек детекции
-- Среднее время: 1-3 минуты на модуль
+- Parallel processing not supported (for stability)
+- Recommended to process no more than 10-20 modules at once
+- Processing time depends on video size and detection settings
+- Average time: 1-3 minutes per module

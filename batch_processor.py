@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Скрипт для пакетной обработки ссылок из CSV файла
-Читает playlist.csv и конвертирует все m3u8 ссылки
+Script for batch processing links from CSV file
+Reads playlist.csv and converts all m3u8 links
 """
 
 import os
@@ -18,18 +18,18 @@ import re
 class BatchProcessor:
     def __init__(self, csv_file: str = "playlist.csv", output_dir: str = None):
         """
-        Инициализация процессора
+        Initialize processor
         
-        :param csv_file: Путь к CSV файлу
-        :param output_dir: Директория для сохранения результатов
+        :param csv_file: Path to CSV file
+        :param output_dir: Directory for saving results
         """
         self.csv_file = Path(csv_file)
         
-        # Проверяем существование файла
+        # Check file existence
         if not self.csv_file.exists():
-            raise FileNotFoundError(f"CSV файл не найден: {csv_file}")
+            raise FileNotFoundError(f"CSV file not found: {csv_file}")
         
-        # Создаем директорию для результатов
+        # Create directory for results
         if output_dir:
             self.output_dir = Path(output_dir)
         else:
@@ -38,10 +38,10 @@ class BatchProcessor:
         
         self.output_dir.mkdir(exist_ok=True)
         
-        # Лог файл
+        # Log file
         self.log_file = self.output_dir / "batch_processing.log"
         
-        # Статистика
+        # Statistics
         self.total_modules = 0
         self.processed_modules = 0
         self.failed_modules = []
@@ -50,82 +50,82 @@ class BatchProcessor:
         self._init_logging()
     
     def _init_logging(self):
-        """Инициализация логирования"""
+        """Initialize logging"""
         self.log_messages = []
         self._log(f"="*60)
-        self._log(f"Batch Processor запущен: {datetime.now()}")
-        self._log(f"CSV файл: {self.csv_file}")
-        self._log(f"Выходная директория: {self.output_dir}")
+        self._log(f"Batch Processor started: {datetime.now()}")
+        self._log(f"CSV file: {self.csv_file}")
+        self._log(f"Output directory: {self.output_dir}")
         self._log(f"="*60)
     
     def _log(self, message: str):
-        """Логирование сообщений"""
+        """Log messages"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {message}"
         print(log_entry)
         self.log_messages.append(log_entry)
         
-        # Сохраняем в файл
+        # Save to file
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(log_entry + '\n')
     
     def _sanitize_filename(self, module_name: str) -> str:
         """
-        Очистка имени модуля для использования в качестве имени файла
+        Clean module name for use as filename
         
-        :param module_name: Исходное имя модуля
-        :return: Очищенное имя файла
+        :param module_name: Original module name
+        :return: Cleaned filename
         """
-        # Удаляем номер в начале (например, "7. Creating..." -> "Creating...")
+        # Remove number at the beginning (e.g., "7. Creating..." -> "Creating...")
         module_name = re.sub(r'^\d+\.\s*', '', module_name)
         
-        # Заменяем недопустимые символы
+        # Replace invalid characters
         invalid_chars = '<>:"/\\|?*'
         for char in invalid_chars:
             module_name = module_name.replace(char, '_')
         
-        # Ограничиваем длину
+        # Limit length
         if len(module_name) > 100:
             module_name = module_name[:100]
         
-        # Удаляем пробелы в начале и конце
+        # Remove spaces at beginning and end
         module_name = module_name.strip()
         
-        # Заменяем множественные пробелы на одинарные
+        # Replace multiple spaces with single space
         module_name = re.sub(r'\s+', ' ', module_name)
         
-        # Заменяем пробелы на подчеркивания
+        # Replace spaces with underscores
         module_name = module_name.replace(' ', '_')
         
         return module_name or "module"
     
     def read_csv(self) -> list:
         """
-        Чтение CSV файла
+        Read CSV file
         
-        :return: Список модулей с ссылками
+        :return: List of modules with links
         """
         modules = []
         
         try:
             with open(self.csv_file, 'r', encoding='utf-8') as f:
-                # Пробуем разные варианты разделителей
+                # Try different delimiters
                 sample = f.read(1024)
                 f.seek(0)
                 
-                # Определяем разделитель
+                # Determine delimiter
                 sniffer = csv.Sniffer()
                 delimiter = sniffer.sniff(sample).delimiter
                 
-                # Читаем CSV
+                # Read CSV
                 reader = csv.DictReader(f, delimiter=delimiter)
                 
-                # Проверяем наличие нужных колонок
+                # Check for required columns
                 if reader.fieldnames:
-                    # Нормализуем имена колонок (убираем пробелы)
+                    # Normalize column names (remove spaces)
                     fieldnames = [field.strip() for field in reader.fieldnames]
                     
-                    # Ищем колонки Module и Link
+                    # Look for Module and Link columns
                     module_col = None
                     link_col = None
                     
@@ -136,16 +136,16 @@ class BatchProcessor:
                             link_col = field
                     
                     if not module_col or not link_col:
-                        self._log(f"⚠️  Не найдены колонки 'Module' и 'Link' в CSV")
-                        self._log(f"   Найденные колонки: {fieldnames}")
+                        self._log(f"⚠️  'Module' and 'Link' columns not found in CSV")
+                        self._log(f"   Found columns: {fieldnames}")
                         return []
                     
-                    # Читаем данные
+                    # Read data
                     f.seek(0)
                     reader = csv.DictReader(f, delimiter=delimiter)
                     
                     for row in reader:
-                        # Получаем значения с учетом пробелов в именах колонок
+                        # Get values considering spaces in column names
                         module = row.get('Module', '').strip() or row.get(' Module', '').strip()
                         link = row.get('Link', '').strip() or row.get(' Link', '').strip()
                         
@@ -156,48 +156,48 @@ class BatchProcessor:
                                 'filename': self._sanitize_filename(module)
                             })
                 
-                self._log(f"\n📊 Найдено модулей в CSV: {len(modules)}")
+                self._log(f"\n📊 Found modules in CSV: {len(modules)}")
                 
                 if modules:
-                    self._log("\n📋 Список модулей:")
+                    self._log("\n📋 Module list:")
                     for i, m in enumerate(modules, 1):
                         self._log(f"   {i:02d}. {m['module'][:50]}...")
                 
                 return modules
                 
         except Exception as e:
-            self._log(f"❌ Ошибка при чтении CSV: {str(e)}")
+            self._log(f"❌ Error reading CSV: {str(e)}")
             return []
     
     def convert_module(self, module: dict) -> bool:
         """
-        Конвертация одного модуля
+        Convert one module
         
-        :param module: Словарь с информацией о модуле
-        :return: Успешность конвертации
+        :param module: Dictionary with module information
+        :return: Conversion success
         """
         module_name = module['module']
         link = module['link']
         filename = module['filename']
         
         self._log(f"\n{'='*50}")
-        self._log(f"🎬 Обработка модуля: {module_name}")
-        self._log(f"   Ссылка: {link[:100]}...")
+        self._log(f"🎬 Processing module: {module_name}")
+        self._log(f"   Link: {link[:100]}...")
         
-        # Создаем поддиректорию для модуля
+        # Create subdirectory for module
         module_dir = self.output_dir / filename
         module_dir.mkdir(exist_ok=True)
         
-        # Путь для выходного файла
+        # Path for output file
         output_file = module_dir / f"{filename}.mp4"
         
-        # Проверяем, не был ли файл уже обработан
+        # Check if file was already processed
         if output_file.exists() and output_file.stat().st_size > 0:
-            self._log(f"✓ Файл уже существует, пропускаем: {output_file.name}")
+            self._log(f"✓ File already exists, skipping: {output_file.name}")
             self.skipped_modules.append(module_name)
             return True
         
-        # Формируем команду для m3u8_converter.py
+        # Form command for m3u8_converter.py
         cmd = [
             sys.executable,
             "m3u8_converter.py",
@@ -206,30 +206,30 @@ class BatchProcessor:
             "--filename", filename
         ]
         
-        self._log(f"   Выходной файл: {output_file}")
-        self._log(f"   Запускаем конвертер...")
+        self._log(f"   Output file: {output_file}")
+        self._log(f"   Starting converter...")
         
         try:
-            # Запускаем конвертер
+            # Start converter
             start_time = time.time()
             
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=1800  # 30 минут таймаут
+                timeout=1800  # 30 minutes timeout
             )
             
             elapsed_time = time.time() - start_time
             
             if result.returncode == 0:
-                # Проверяем, что файл создан
+                # Check if file was created
                 if output_file.exists() and output_file.stat().st_size > 0:
                     size_mb = output_file.stat().st_size / (1024 * 1024)
-                    self._log(f"✅ Успешно конвертирован за {elapsed_time:.1f}с")
-                    self._log(f"   Размер файла: {size_mb:.2f} MB")
+                    self._log(f"✅ Successfully converted in {elapsed_time:.1f}s")
+                    self._log(f"   File size: {size_mb:.2f} MB")
                     
-                    # Сохраняем информацию о модуле
+                    # Save module information
                     info_file = module_dir / "module_info.txt"
                     with open(info_file, 'w', encoding='utf-8') as f:
                         f.write(f"Module: {module_name}\n")
@@ -241,87 +241,87 @@ class BatchProcessor:
                     
                     return True
                 else:
-                    self._log(f"❌ Файл не был создан")
+                    self._log(f"❌ File was not created")
                     self.failed_modules.append(module_name)
                     return False
             else:
-                self._log(f"❌ Ошибка при конвертации (код: {result.returncode})")
+                self._log(f"❌ Error during conversion (code: {result.returncode})")
                 if result.stderr:
-                    error_lines = result.stderr.strip().split('\n')[-5:]  # Последние 5 строк ошибки
+                    error_lines = result.stderr.strip().split('\n')[-5:]  # Last 5 error lines
                     for line in error_lines:
                         self._log(f"   {line}")
                 self.failed_modules.append(module_name)
                 return False
                 
         except subprocess.TimeoutExpired:
-            self._log(f"❌ Таймаут при конвертации (более 30 минут)")
+            self._log(f"❌ Timeout during conversion (more than 30 minutes)")
             self.failed_modules.append(module_name)
             return False
         except Exception as e:
-            self._log(f"❌ Ошибка: {str(e)}")
+            self._log(f"❌ Error: {str(e)}")
             self.failed_modules.append(module_name)
             return False
     
     def generate_report(self):
-        """Генерация финального отчета"""
+        """Generate final report"""
         report_file = self.output_dir / "processing_report.txt"
         
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write("="*60 + "\n")
-            f.write("ОТЧЕТ О ПАКЕТНОЙ ОБРАБОТКЕ\n")
+            f.write("BATCH PROCESSING REPORT\n")
             f.write("="*60 + "\n\n")
             
-            f.write(f"Время выполнения: {datetime.now()}\n")
-            f.write(f"CSV файл: {self.csv_file}\n")
-            f.write(f"Выходная директория: {self.output_dir}\n\n")
+            f.write(f"Execution time: {datetime.now()}\n")
+            f.write(f"CSV file: {self.csv_file}\n")
+            f.write(f"Output directory: {self.output_dir}\n\n")
             
-            f.write("СТАТИСТИКА:\n")
+            f.write("STATISTICS:\n")
             f.write("-"*40 + "\n")
-            f.write(f"Всего модулей: {self.total_modules}\n")
-            f.write(f"Успешно обработано: {self.processed_modules}\n")
-            f.write(f"Пропущено (уже существуют): {len(self.skipped_modules)}\n")
-            f.write(f"Ошибки: {len(self.failed_modules)}\n\n")
+            f.write(f"Total modules: {self.total_modules}\n")
+            f.write(f"Successfully processed: {self.processed_modules}\n")
+            f.write(f"Skipped (already exist): {len(self.skipped_modules)}\n")
+            f.write(f"Errors: {len(self.failed_modules)}\n\n")
             
             if self.skipped_modules:
-                f.write("ПРОПУЩЕННЫЕ МОДУЛИ:\n")
+                f.write("SKIPPED MODULES:\n")
                 f.write("-"*40 + "\n")
                 for module in self.skipped_modules:
                     f.write(f"  - {module}\n")
                 f.write("\n")
             
             if self.failed_modules:
-                f.write("МОДУЛИ С ОШИБКАМИ:\n")
+                f.write("MODULES WITH ERRORS:\n")
                 f.write("-"*40 + "\n")
                 for module in self.failed_modules:
                     f.write(f"  - {module}\n")
                 f.write("\n")
             
-            f.write("ПОДРОБНЫЙ ЛОГ:\n")
+            f.write("DETAILED LOG:\n")
             f.write("-"*40 + "\n")
             for log_entry in self.log_messages:
-                f.write(log_entry + "\n")
+                f.write(log_entry + '\n')
         
-        self._log(f"\n📋 Отчет сохранен: {report_file}")
+        self._log(f"\n📋 Report saved: {report_file}")
     
     def run(self, start_from: int = 0, max_modules: int = None):
         """
-        Запуск пакетной обработки
+        Start batch processing
         
-        :param start_from: С какого модуля начать (0-based index)
-        :param max_modules: Максимальное количество модулей для обработки
+        :param start_from: Which module to start from (0-based index)
+        :param max_modules: Maximum number of modules to process
         """
-        self._log("\n🚀 ЗАПУСК ПАКЕТНОЙ ОБРАБОТКИ")
+        self._log("\n🚀 STARTING BATCH PROCESSING")
         
-        # Читаем CSV
+        # Read CSV
         modules = self.read_csv()
         
         if not modules:
-            self._log("❌ Нет модулей для обработки")
+            self._log("❌ No modules to process")
             return False
         
         self.total_modules = len(modules)
         
-        # Определяем диапазон для обработки
+        # Determine processing range
         end_at = len(modules)
         if max_modules:
             end_at = min(start_from + max_modules, len(modules))
@@ -329,93 +329,93 @@ class BatchProcessor:
         modules_to_process = modules[start_from:end_at]
         
         if start_from > 0 or max_modules:
-            self._log(f"\n📌 Обработка модулей с {start_from+1} по {end_at} из {self.total_modules}")
+            self._log(f"\n📌 Processing modules from {start_from+1} to {end_at} of {self.total_modules}")
         
-        # Обрабатываем каждый модуль
+        # Process each module
         start_time = time.time()
         
         for i, module in enumerate(modules_to_process, start=start_from+1):
             self._log(f"\n{'='*50}")
-            self._log(f"📦 Прогресс: {i}/{self.total_modules}")
+            self._log(f"📦 Progress: {i}/{self.total_modules}")
             
             if self.convert_module(module):
                 if module['module'] not in self.skipped_modules:
                     self.processed_modules += 1
             
-            # Показываем промежуточную статистику
-            if i % 5 == 0:  # Каждые 5 модулей
+            # Show intermediate statistics
+            if i % 5 == 0:  # Every 5 modules
                 elapsed = time.time() - start_time
                 avg_time = elapsed / i if i > 0 else 0
                 remaining = (self.total_modules - i) * avg_time
                 
-                self._log(f"\n⏱️  Прошло времени: {self._format_time(elapsed)}")
-                self._log(f"   Осталось примерно: {self._format_time(remaining)}")
+                self._log(f"\n⏱️  Time elapsed: {self._format_time(elapsed)}")
+                self._log(f"   Estimated remaining: {self._format_time(remaining)}")
         
-        # Финальная статистика
+        # Final statistics
         total_time = time.time() - start_time
         
         self._log(f"\n{'='*60}")
-        self._log("✨ ОБРАБОТКА ЗАВЕРШЕНА!")
+        self._log("✨ PROCESSING COMPLETED!")
         self._log(f"{'='*60}")
-        self._log(f"\n📊 Итоговая статистика:")
-        self._log(f"   Всего модулей: {self.total_modules}")
-        self._log(f"   Успешно обработано: {self.processed_modules}")
-        self._log(f"   Пропущено: {len(self.skipped_modules)}")
-        self._log(f"   Ошибки: {len(self.failed_modules)}")
-        self._log(f"   Общее время: {self._format_time(total_time)}")
+        self._log(f"\n📊 Final statistics:")
+        self._log(f"   Total modules: {self.total_modules}")
+        self._log(f"   Successfully processed: {self.processed_modules}")
+        self._log(f"   Skipped: {len(self.skipped_modules)}")
+        self._log(f"   Errors: {len(self.failed_modules)}")
+        self._log(f"   Total time: {self._format_time(total_time)}")
         
         if self.processed_modules > 0:
             avg_time_per_module = total_time / self.processed_modules
-            self._log(f"   Среднее время на модуль: {self._format_time(avg_time_per_module)}")
+            self._log(f"   Average time per module: {self._format_time(avg_time_per_module)}")
         
-        # Генерируем отчет
+        # Generate report
         self.generate_report()
         
-        self._log(f"\n📁 Все результаты сохранены в: {self.output_dir}")
+        self._log(f"\n📁 All results saved in: {self.output_dir}")
         
         return len(self.failed_modules) == 0
     
     def _format_time(self, seconds: float) -> str:
-        """Форматирование времени"""
+        """Format time"""
         if seconds < 60:
-            return f"{seconds:.0f}с"
+            return f"{seconds:.0f}s"
         elif seconds < 3600:
             minutes = seconds // 60
             secs = seconds % 60
-            return f"{minutes:.0f}м {secs:.0f}с"
+            return f"{minutes:.0f}m {secs:.0f}s"
         else:
             hours = seconds // 3600
             minutes = (seconds % 3600) // 60
-            return f"{hours:.0f}ч {minutes:.0f}м"
+            return f"{hours:.0f}h {minutes:.0f}m"
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Пакетная обработка m3u8 ссылок из CSV файла",
+        description="Batch processing of m3u8 links from CSV file",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Формат CSV файла:
+CSV file format:
   Module,Link
-  "Название модуля 1","https://example.com/video1.m3u8"
-  "Название модуля 2","https://example.com/video2.m3u8"
+  "Module name 1","https://example.com/video1.m3u8"
+  "Module name 2","https://example.com/video2.m3u8"
 
-Примеры использования:
-  # Обработать все модули из playlist.csv
+Usage examples:
+  # Process all modules from playlist.csv
   python batch_processor.py
   
-  # Использовать другой CSV файл
+  # Use different CSV file
   python batch_processor.py -f my_playlist.csv
   
-  # Указать директорию для результатов
+  # Specify directory for results
   python batch_processor.py -o my_videos
   
-  # Начать с определенного модуля (полезно при возобновлении)
+  # Start from specific module (useful for resuming)
   python batch_processor.py --start-from 5
   
-  # Обработать только первые N модулей
+  # Process only first N modules
   python batch_processor.py --max 10
   
-  # Комбинация параметров
+  # Combine parameters
   python batch_processor.py --start-from 10 --max 5
         """
     )
@@ -423,12 +423,12 @@ def main():
     parser.add_argument(
         "-f", "--file",
         default="playlist.csv",
-        help="Путь к CSV файлу (по умолчанию: playlist.csv)"
+        help="Path to CSV file (default: playlist.csv)"
     )
     
     parser.add_argument(
         "-o", "--output",
-        help="Директория для сохранения результатов",
+        help="Directory for saving results",
         default=None
     )
     
@@ -436,39 +436,39 @@ def main():
         "--start-from",
         type=int,
         default=0,
-        help="С какого модуля начать (0-based, по умолчанию: 0)"
+        help="Which module to start from (0-based, default: 0)"
     )
     
     parser.add_argument(
         "--max",
         type=int,
-        help="Максимальное количество модулей для обработки"
+        help="Maximum number of modules to process"
     )
     
     args = parser.parse_args()
     
     try:
-        # Создаем процессор
+        # Create processor
         processor = BatchProcessor(args.file, args.output)
         
-        # Запускаем обработку
+        # Start processing
         success = processor.run(
             start_from=args.start_from,
             max_modules=args.max
         )
         
-        # Возвращаем код выхода
+        # Return exit code
         sys.exit(0 if success else 1)
         
     except FileNotFoundError as e:
         print(f"❌ {e}")
-        print("\n💡 Убедитесь, что файл playlist.csv находится в текущей директории")
-        print("   Формат файла:")
+        print("\n💡 Make sure playlist.csv is in the current directory")
+        print("   File format:")
         print("   Module,Link")
-        print('   "Название модуля","https://example.com/video.m3u8"')
+        print('   "Module name","https://example.com/video.m3u8"')
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        print(f"❌ Error: {e}")
         sys.exit(1)
 
 

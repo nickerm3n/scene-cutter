@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Скрипт для обнаружения и извлечения сцен из видео
-Шаг 2: Детектор сцен с PySceneDetect
+Script for detecting and extracting scenes from video
+Step 2: Scene detector with PySceneDetect
 """
 
 import os
@@ -18,31 +18,31 @@ try:
     from scenedetect.frame_timecode import FrameTimecode
     from scenedetect.stats_manager import StatsManager
 except ImportError:
-    print("❌ PySceneDetect не установлен!")
-    print("   Установите: pip install scenedetect[opencv]")
+    print("❌ PySceneDetect not installed!")
+    print("   Install: pip install scenedetect[opencv]")
     sys.exit(1)
 
 try:
     import cv2
 except ImportError:
-    print("❌ OpenCV не установлен!")
-    print("   Установите: pip install opencv-python")
+    print("❌ OpenCV not installed!")
+    print("   Install: pip install opencv-python")
     sys.exit(1)
 
 
 class SceneExtractor:
     def __init__(self, video_path: str, output_dir: str = None):
         """
-        Инициализация детектора сцен
+        Initialize scene detector
         
-        :param video_path: Путь к видео файлу
-        :param output_dir: Директория для сохранения результатов
+        :param video_path: Path to video file
+        :param output_dir: Directory for saving results
         """
         self.video_path = Path(video_path)
         if not self.video_path.exists():
-            raise FileNotFoundError(f"Видео файл не найден: {video_path}")
+            raise FileNotFoundError(f"Video file not found: {video_path}")
         
-        # Создаем директорию для результатов
+        # Create directory for results
         if output_dir:
             self.output_dir = Path(output_dir)
         else:
@@ -50,7 +50,7 @@ class SceneExtractor:
         
         self.output_dir.mkdir(exist_ok=True)
         
-        # Поддиректории для разных типов вывода
+        # Subdirectories for different output types
         self.frames_dir = self.output_dir / "frames"
         self.clips_dir = self.output_dir / "clips"
         self.frames_dir.mkdir(exist_ok=True)
@@ -64,33 +64,33 @@ class SceneExtractor:
                      min_scene_len: float = 0.5,
                      detector_type: str = 'content') -> List[Tuple[FrameTimecode, FrameTimecode]]:
         """
-        Обнаружение сцен в видео
+        Detect scenes in video
         
-        :param threshold: Порог чувствительности (1-100, меньше = больше сцен)
-        :param min_scene_len: Минимальная длина сцены в секундах
-        :param detector_type: Тип детектора ('content' или 'adaptive')
-        :return: Список сцен с временными метками
+        :param threshold: Sensitivity threshold (1-100, lower = more scenes)
+        :param min_scene_len: Minimum scene length in seconds
+        :param detector_type: Detector type ('content' or 'adaptive')
+        :return: List of scenes with timestamps
         """
-        # Получаем информацию о видео
+        # Get video information
         cap = cv2.VideoCapture(str(self.video_path))
         fps = cap.get(cv2.CAP_PROP_FPS)
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration = frame_count / fps if fps > 0 else 0
         cap.release()
         
-        print(f"🔍 Анализируем видео: {self.video_path.name}")
-        print(f"   Длительность: {duration:.2f}с")
-        print(f"   Кадров: {frame_count}")
+        print(f"🔍 Analyzing video: {self.video_path.name}")
+        print(f"   Duration: {duration:.2f}s")
+        print(f"   Frames: {frame_count}")
         print(f"   FPS: {fps:.2f}")
-        print(f"   Детектор: {detector_type}")
-        print(f"   Порог: {threshold}")
-        print(f"   Мин. длина сцены: {min_scene_len}с")
+        print(f"   Detector: {detector_type}")
+        print(f"   Threshold: {threshold}")
+        print(f"   Min scene length: {min_scene_len}s")
         
-        # Выбираем детектор
+        # Choose detector
         if detector_type == 'adaptive':
             detector = AdaptiveDetector(
                 adaptive_threshold=threshold,
-                min_scene_len=int(min_scene_len * 30)  # Конвертируем в кадры (примерно 30fps)
+                min_scene_len=int(min_scene_len * 30)  # Convert to frames (approximately 30fps)
             )
         else:
             detector = ContentDetector(
@@ -98,321 +98,231 @@ class SceneExtractor:
                 min_scene_len=int(min_scene_len * 30)
             )
         
-        # Обнаруживаем сцены
-        try:
-            self.scene_list = detect(str(self.video_path), detector)
-            
-            print(f"\n✅ Найдено сцен: {len(self.scene_list)}")
-            
-            # Сохраняем информацию о сценах
-            self.scenes = []
-            for i, (start_time, end_time) in enumerate(self.scene_list):
-                duration = end_time - start_time
-                scene_info = {
-                    'index': i,
-                    'start_time': start_time.get_seconds(),
-                    'end_time': end_time.get_seconds(),
-                    'duration': duration.get_seconds(),
-                    'start_frame': start_time.get_frames(),
-                    'end_frame': end_time.get_frames()
-                }
-                self.scenes.append(scene_info)
-                
-                print(f"   Сцена {i+1:03d}: {self._format_time(scene_info['start_time'])} - "
-                      f"{self._format_time(scene_info['end_time'])} "
-                      f"(длительность: {scene_info['duration']:.2f}с)")
-            
-            # Сохраняем метаданные
-            self._save_metadata()
-            
-            return self.scene_list
-            
-        except Exception as e:
-            print(f"❌ Ошибка при обнаружении сцен: {str(e)}")
-            return []
-    
-    def extract_frames(self, 
-                      frame_type: str = 'middle',
-                      quality: int = 95) -> List[str]:
-        """
-        Извлечение кадров из каждой сцены
+        # Detect scenes
+        scene_list = detect(str(self.video_path), detector)
         
-        :param frame_type: Тип кадра ('first', 'middle', 'last', 'best')
-        :param quality: Качество JPEG (1-100)
-        :return: Список путей к сохраненным кадрам
-        """
-        if not self.scenes:
-            print("⚠️  Сначала необходимо обнаружить сцены!")
+        if not scene_list:
+            print("⚠️  No scenes detected")
             return []
         
-        print(f"\n📸 Извлекаем кадры ({frame_type}) из {len(self.scenes)} сцен...")
+        print(f"\n✅ Found scenes: {len(scene_list)}")
         
-        cap = cv2.VideoCapture(str(self.video_path))
-        if not cap.isOpened():
-            print(f"❌ Не удалось открыть видео: {self.video_path}")
-            return []
+        # Display scene information
+        for i, (start, end) in enumerate(scene_list, 1):
+            start_time = start.get_seconds()
+            end_time = end.get_seconds()
+            scene_duration = end_time - start_time
+            
+            print(f"   Scene {i:03d}: {self._format_time(start_time)} - {self._format_time(end_time)} (duration: {scene_duration:.2f}s)")
         
-        saved_frames = []
-        
-        try:
-            for scene in self.scenes:
-                frame_num = self._get_frame_number(scene, frame_type)
-                
-                # Переходим к нужному кадру
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
-                ret, frame = cap.read()
-                
-                if ret:
-                    # Формируем имя файла
-                    time_str = self._format_time(scene['start_time'], for_filename=True)
-                    frame_path = self.frames_dir / f"scene_{scene['index']+1:03d}_{time_str}.jpg"
-                    
-                    # Сохраняем кадр
-                    cv2.imwrite(str(frame_path), frame, 
-                               [cv2.IMWRITE_JPEG_QUALITY, quality])
-                    
-                    saved_frames.append(str(frame_path))
-                    print(f"   ✓ Сцена {scene['index']+1:03d} -> {frame_path.name}")
-                else:
-                    print(f"   ✗ Не удалось извлечь кадр для сцены {scene['index']+1}")
-        
-        finally:
-            cap.release()
-        
-        print(f"\n✅ Сохранено кадров: {len(saved_frames)}")
-        return saved_frames
+        self.scene_list = scene_list
+        return scene_list
     
-    def extract_clips(self, use_ffmpeg: bool = True) -> List[str]:
-        """
-        Извлечение видео клипов для каждой сцены
-        
-        :param use_ffmpeg: Использовать FFmpeg (True) или OpenCV (False)
-        :return: Список путей к сохраненным клипам
-        """
-        if not self.scenes:
-            print("⚠️  Сначала необходимо обнаружить сцены!")
-            return []
-        
-        print(f"\n🎬 Извлекаем клипы из {len(self.scenes)} сцен...")
-        
-        saved_clips = []
-        
-        if use_ffmpeg:
-            import subprocess
-            
-            for scene in self.scenes:
-                # Формируем имя файла
-                time_str = self._format_time(scene['start_time'], for_filename=True)
-                clip_path = self.clips_dir / f"scene_{scene['index']+1:03d}_{time_str}.mp4"
-                
-                # Команда FFmpeg для извлечения клипа
-                cmd = [
-                    "ffmpeg",
-                    "-i", str(self.video_path),
-                    "-ss", str(scene['start_time']),
-                    "-t", str(scene['duration']),
-                    "-c", "copy",  # Копируем без перекодирования
-                    "-avoid_negative_ts", "make_zero",
-                    "-y",
-                    str(clip_path)
-                ]
-                
-                try:
-                    result = subprocess.run(cmd, 
-                                          capture_output=True, 
-                                          text=True)
-                    if result.returncode == 0:
-                        saved_clips.append(str(clip_path))
-                        print(f"   ✓ Сцена {scene['index']+1:03d} -> {clip_path.name} "
-                              f"({scene['duration']:.2f}с)")
-                    else:
-                        print(f"   ✗ Ошибка при извлечении сцены {scene['index']+1}")
-                except Exception as e:
-                    print(f"   ✗ Ошибка: {str(e)}")
-        else:
-            # Используем OpenCV (медленнее, но не требует FFmpeg)
-            cap = cv2.VideoCapture(str(self.video_path))
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            
-            for scene in self.scenes:
-                time_str = self._format_time(scene['start_time'], for_filename=True)
-                clip_path = self.clips_dir / f"scene_{scene['index']+1:03d}_{time_str}.mp4"
-                
-                # Настраиваем видео writer
-                cap.set(cv2.CAP_PROP_POS_FRAMES, scene['start_frame'])
-                ret, frame = cap.read()
-                if not ret:
-                    continue
-                    
-                height, width = frame.shape[:2]
-                out = cv2.VideoWriter(str(clip_path), fourcc, fps, (width, height))
-                
-                # Записываем кадры
-                for frame_num in range(scene['start_frame'], scene['end_frame']):
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
-                    ret, frame = cap.read()
-                    if ret:
-                        out.write(frame)
-                
-                out.release()
-                saved_clips.append(str(clip_path))
-                print(f"   ✓ Сцена {scene['index']+1:03d} -> {clip_path.name}")
-            
-            cap.release()
-        
-        print(f"\n✅ Сохранено клипов: {len(saved_clips)}")
-        return saved_clips
-    
-    def split_equal_parts(self, num_parts: int = 10) -> List[Tuple[float, float]]:
-        """
-        Разбить видео на равные части (альтернатива детекции сцен)
-        
-        :param num_parts: Количество частей
-        :return: Список временных меток
-        """
-        cap = cv2.VideoCapture(str(self.video_path))
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration = frame_count / fps if fps > 0 else 0
-        cap.release()
-        
-        print(f"\n✂️ Разбиваем видео на {num_parts} равных частей")
-        
-        part_duration = duration / num_parts
-        self.scenes = []
-        
-        for i in range(num_parts):
-            start_time = i * part_duration
-            end_time = min((i + 1) * part_duration, duration)
-            
-            scene_info = {
-                'index': i,
-                'start_time': start_time,
-                'end_time': end_time,
-                'duration': end_time - start_time,
-                'start_frame': int(start_time * fps),
-                'end_frame': int(end_time * fps)
-            }
-            self.scenes.append(scene_info)
-            
-            print(f"   Часть {i+1:03d}: {self._format_time(start_time)} - "
-                  f"{self._format_time(end_time)} "
-                  f"(длительность: {scene_info['duration']:.2f}с)")
-        
-        self._save_metadata()
-        return self.scenes
-    
-    def _get_frame_number(self, scene: dict, frame_type: str) -> int:
-        """Получение номера кадра в зависимости от типа"""
-        if frame_type == 'first':
-            return scene['start_frame']
-        elif frame_type == 'last':
-            return scene['end_frame'] - 1
-        elif frame_type == 'middle':
-            return (scene['start_frame'] + scene['end_frame']) // 2
-        else:  # 'best' - берем кадр чуть после начала (обычно более стабильный)
-            offset = min(30, (scene['end_frame'] - scene['start_frame']) // 10)
-            return scene['start_frame'] + offset
-        """Получение номера кадра в зависимости от типа"""
-        if frame_type == 'first':
-            return scene['start_frame']
-        elif frame_type == 'last':
-            return scene['end_frame'] - 1
-        elif frame_type == 'middle':
-            return (scene['start_frame'] + scene['end_frame']) // 2
-        else:  # 'best' - берем кадр чуть после начала (обычно более стабильный)
-            offset = min(30, (scene['end_frame'] - scene['start_frame']) // 10)
-            return scene['start_frame'] + offset
-    
-    def _format_time(self, seconds: float, for_filename: bool = False) -> str:
-        """Форматирование времени"""
+    def _format_time(self, seconds: float) -> str:
+        """Format time in HH:MM:SS format"""
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)
-        
-        if for_filename:
-            return f"{hours:02d}h{minutes:02d}m{secs:02d}s"
-        else:
-            return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+        return f"{hours:02d}h{minutes:02d}m{secs:02d}s"
     
-    def _save_metadata(self):
-        """Сохранение метаданных о сценах"""
+    def extract_frames(self, frame_type: str = 'middle') -> int:
+        """
+        Extract frames from scenes
+        
+        :param frame_type: Type of frame to extract ('first', 'middle', 'last', 'best')
+        :return: Number of extracted frames
+        """
+        if not self.scene_list:
+            print("❌ No scenes to extract frames from")
+            return 0
+        
+        print(f"\n📸 Extracting frames ({frame_type}) from {len(self.scene_list)} scenes...")
+        
+        # Get video FPS for frame calculations
+        cap = cv2.VideoCapture(str(self.video_path))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        cap.release()
+        
+        extracted_count = 0
+        
+        for i, (start, end) in enumerate(self.scene_list, 1):
+            # Determine frame position
+            if frame_type == 'first':
+                frame_time = start
+            elif frame_type == 'last':
+                frame_time = end
+            elif frame_type == 'middle':
+                middle_time = (start.get_seconds() + end.get_seconds()) / 2
+                frame_time = FrameTimecode(middle_time, fps=fps)
+            elif frame_type == 'best':
+                # For best frame, we'll use middle for now
+                middle_time = (start.get_seconds() + end.get_seconds()) / 2
+                frame_time = FrameTimecode(middle_time, fps=fps)
+            else:
+                frame_time = start
+            
+            # Extract frame
+            frame_filename = f"scene_{i:03d}_{self._format_time(start.get_seconds())}.jpg"
+            frame_path = self.frames_dir / frame_filename
+            
+            if self._extract_frame(frame_time, frame_path):
+                print(f"   ✓ Scene {i:03d} -> {frame_filename}")
+                extracted_count += 1
+            else:
+                print(f"   ❌ Failed to extract frame from scene {i:03d}")
+        
+        print(f"\n✅ Saved frames: {extracted_count}")
+        return extracted_count
+    
+    def _extract_frame(self, frame_time: FrameTimecode, output_path: Path) -> bool:
+        """Extract single frame at specified time"""
+        try:
+            cap = cv2.VideoCapture(str(self.video_path))
+            
+            # Set position
+            frame_number = int(frame_time.get_frames())
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+            
+            # Read frame
+            ret, frame = cap.read()
+            cap.release()
+            
+            if ret:
+                cv2.imwrite(str(output_path), frame)
+                return True
+            else:
+                return False
+                
+        except Exception as e:
+            print(f"   Error extracting frame: {e}")
+            return False
+    
+    def extract_clips(self) -> int:
+        """
+        Extract video clips for each scene
+        
+        :return: Number of extracted clips
+        """
+        if not self.scene_list:
+            print("❌ No scenes to extract clips from")
+            return 0
+        
+        print(f"\n🎬 Extracting clips from {len(self.scene_list)} scenes...")
+        
+        extracted_count = 0
+        
+        for i, (start, end) in enumerate(self.scene_list, 1):
+            clip_filename = f"scene_{i:03d}_{self._format_time(start.get_seconds())}.mp4"
+            clip_path = self.clips_dir / clip_filename
+            
+            if self._extract_clip(start, end, clip_path):
+                print(f"   ✓ Scene {i:03d} -> {clip_filename}")
+                extracted_count += 1
+            else:
+                print(f"   ❌ Failed to extract clip from scene {i:03d}")
+        
+        print(f"\n✅ Saved clips: {extracted_count}")
+        return extracted_count
+    
+    def _extract_clip(self, start: FrameTimecode, end: FrameTimecode, output_path: Path) -> bool:
+        """Extract video clip between start and end times"""
+        try:
+            import subprocess
+            
+            start_time = start.get_seconds()
+            duration = end.get_seconds() - start_time
+            
+            cmd = [
+                "ffmpeg",
+                "-i", str(self.video_path),
+                "-ss", str(start_time),
+                "-t", str(duration),
+                "-c", "copy",
+                "-y", str(output_path)
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.returncode == 0
+            
+        except Exception as e:
+            print(f"   Error extracting clip: {e}")
+            return False
+    
+    def save_metadata(self):
+        """Save scene metadata to JSON file"""
         metadata = {
-            'video': str(self.video_path),
-            'total_scenes': len(self.scenes),
-            'scenes': self.scenes
+            "video_file": str(self.video_path),
+            "total_scenes": len(self.scene_list),
+            "scenes": []
         }
         
-        metadata_path = self.output_dir / 'scenes_metadata.json'
-        with open(metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=2, ensure_ascii=False)
+        for i, (start, end) in enumerate(self.scene_list, 1):
+            scene_info = {
+                "scene_number": i,
+                "start_time": start.get_seconds(),
+                "end_time": end.get_seconds(),
+                "duration": end.get_seconds() - start.get_seconds(),
+                "start_frame": start.get_frames(),
+                "end_frame": end.get_frames()
+            }
+            metadata["scenes"].append(scene_info)
         
-        print(f"\n💾 Метаданные сохранены: {metadata_path}")
+        metadata_file = self.output_dir / "scenes_metadata.json"
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        print(f"💾 Metadata saved: {metadata_file}")
     
-    def generate_summary(self):
-        """Генерация HTML страницы с результатами"""
-        if not self.scenes:
+    def generate_html_report(self):
+        """Generate HTML report with scene information"""
+        if not self.scene_list:
             return
         
-        html_content = f"""<!DOCTYPE html>
+        html_content = f"""
+<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Анализ сцен: {self.video_path.name}</title>
+    <title>Scene Detection Report - {self.video_path.name}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
-        h1 {{ color: #333; }}
-        .scene {{ 
-            background: white; 
-            margin: 20px 0; 
-            padding: 15px; 
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        .scene img {{ 
-            max-width: 100%; 
-            height: auto; 
-            border-radius: 4px;
-        }}
-        .scene-info {{ 
-            margin: 10px 0; 
-            color: #666;
-        }}
-        .stats {{
-            background: #e8f4f8;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-        }}
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .header {{ background: #f0f0f0; padding: 20px; border-radius: 5px; }}
+        .scene {{ margin: 10px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }}
+        .scene-number {{ font-weight: bold; color: #333; }}
+        .scene-time {{ color: #666; }}
+        .scene-duration {{ color: #888; }}
+        .frame-preview {{ margin-top: 10px; }}
+        .frame-preview img {{ max-width: 200px; border: 1px solid #ccc; }}
     </style>
 </head>
 <body>
-    <h1>📹 Анализ сцен: {self.video_path.name}</h1>
-    
-    <div class="stats">
-        <h2>📊 Статистика</h2>
-        <p>Всего сцен: <strong>{len(self.scenes)}</strong></p>
-        <p>Средняя длительность: <strong>{sum(s['duration'] for s in self.scenes) / len(self.scenes):.2f}</strong> сек</p>
-        <p>Общая длительность: <strong>{sum(s['duration'] for s in self.scenes):.2f}</strong> сек</p>
+    <div class="header">
+        <h1>Scene Detection Report</h1>
+        <p><strong>Video:</strong> {self.video_path.name}</p>
+        <p><strong>Total Scenes:</strong> {len(self.scene_list)}</p>
     </div>
-    
-    <h2>🎬 Сцены</h2>
 """
         
-        for scene in self.scenes:
-            time_str = self._format_time(scene['start_time'], for_filename=True)
-            frame_path = f"frames/scene_{scene['index']+1:03d}_{time_str}.jpg"
+        for i, (start, end) in enumerate(self.scene_list, 1):
+            start_time = start.get_seconds()
+            end_time = end.get_seconds()
+            duration = end_time - start_time
+            
+            # Check if frame exists
+            frame_filename = f"scene_{i:03d}_{self._format_time(start_time)}.jpg"
+            frame_path = self.frames_dir / frame_filename
+            
+            frame_html = ""
+            if frame_path.exists():
+                frame_html = f"""
+        <div class="frame-preview">
+            <img src="frames/{frame_filename}" alt="Scene {i}">
+        </div>"""
             
             html_content += f"""
     <div class="scene">
-        <h3>Сцена {scene['index']+1}</h3>
-        <img src="{frame_path}" alt="Сцена {scene['index']+1}">
-        <div class="scene-info">
-            <p>⏱️ Время: {self._format_time(scene['start_time'])} - {self._format_time(scene['end_time'])}</p>
-            <p>⏳ Длительность: {scene['duration']:.2f} сек</p>
-            <p>🎞️ Кадры: {scene['start_frame']} - {scene['end_frame']}</p>
-        </div>
+        <div class="scene-number">Scene {i}</div>
+        <div class="scene-time">{self._format_time(start_time)} - {self._format_time(end_time)}</div>
+        <div class="scene-duration">Duration: {duration:.2f}s</div>{frame_html}
     </div>
 """
         
@@ -421,144 +331,143 @@ class SceneExtractor:
 </html>
 """
         
-        html_path = self.output_dir / 'summary.html'
-        with open(html_path, 'w', encoding='utf-8') as f:
+        html_file = self.output_dir / "summary.html"
+        with open(html_file, 'w') as f:
             f.write(html_content)
         
-        print(f"📄 HTML отчет: {html_path}")
+        print(f"📄 HTML report: {html_file}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Детектор и экстрактор сцен из видео",
+        description="Detect and extract scenes from video",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Примеры использования:
-  # Базовое обнаружение сцен
+Usage examples:
+  # Basic scene detection
   python scene_detector.py video.mp4
   
-  # С извлечением кадров
+  # With custom threshold
+  python scene_detector.py video.mp4 --threshold 10
+  
+  # Extract frames from scenes
   python scene_detector.py video.mp4 --extract-frames
   
-  # С извлечением клипов
-  python scene_detector.py video.mp4 --extract-clips
+  # Extract clips and frames
+  python scene_detector.py video.mp4 --extract-frames --extract-clips
   
-  # Настройка чувствительности (меньше = больше сцен)
-  python scene_detector.py video.mp4 --threshold 20
-  
-  # Полный анализ
-  python scene_detector.py video.mp4 --extract-frames --extract-clips --html
+  # Split into equal parts instead of detection
+  python scene_detector.py video.mp4 --split-equal 20
         """
     )
     
     parser.add_argument(
         "video",
-        help="Путь к видео файлу"
+        help="Path to video file"
     )
     
     parser.add_argument(
         "-o", "--output",
-        help="Директория для сохранения результатов",
-        default=None
+        help="Output directory for results"
     )
     
     parser.add_argument(
         "--threshold",
         type=float,
         default=30.0,
-        help="Порог чувствительности (1-100, по умолчанию: 30)"
+        help="Detection threshold (1-100, lower = more scenes, default: 30)"
     )
     
     parser.add_argument(
         "--min-scene-len",
         type=float,
         default=0.5,
-        help="Минимальная длина сцены в секундах (по умолчанию: 0.5)"
+        help="Minimum scene length in seconds (default: 0.5)"
     )
     
     parser.add_argument(
         "--detector",
         choices=['content', 'adaptive'],
         default='content',
-        help="Тип детектора (по умолчанию: content)"
-    )
-    
-    parser.add_argument(
-        "--extract-frames",
-        action="store_true",
-        help="Извлечь кадры из сцен"
-    )
-    
-    parser.add_argument(
-        "--frame-type",
-        choices=['first', 'middle', 'last', 'best'],
-        default='middle',
-        help="Какой кадр извлекать (по умолчанию: middle)"
-    )
-    
-    parser.add_argument(
-        "--extract-clips",
-        action="store_true",
-        help="Извлечь видео клипы для каждой сцены"
-    )
-    
-    parser.add_argument(
-        "--html",
-        action="store_true",
-        help="Генерировать HTML отчет"
+        help="Detector type (default: content)"
     )
     
     parser.add_argument(
         "--split-equal",
         type=int,
         metavar="N",
-        help="Разбить видео на N равных частей вместо детекции сцен"
+        help="Split into N equal parts instead of scene detection"
     )
     
     parser.add_argument(
-        "--quality",
-        type=int,
-        default=95,
-        help="Качество JPEG для кадров (1-100, по умолчанию: 95)"
+        "--extract-frames",
+        action="store_true",
+        help="Extract frames from scenes"
+    )
+    
+    parser.add_argument(
+        "--frame-type",
+        choices=['first', 'middle', 'last', 'best'],
+        default='middle',
+        help="Frame type to extract (default: middle)"
+    )
+    
+    parser.add_argument(
+        "--extract-clips",
+        action="store_true",
+        help="Extract video clips for each scene"
+    )
+    
+    parser.add_argument(
+        "--html",
+        action="store_true",
+        help="Generate HTML report"
     )
     
     args = parser.parse_args()
     
-    # Создаем экстрактор
-    extractor = SceneExtractor(args.video, args.output)
-    
-    # Выбираем метод разбиения
-    if args.split_equal:
-        # Разбиваем на равные части
-        scenes = extractor.split_equal_parts(args.split_equal)
-    else:
-        # Обнаруживаем сцены автоматически
+    try:
+        # Create extractor
+        extractor = SceneExtractor(args.video, args.output)
+        
+        if args.split_equal:
+            # Split into equal parts
+            print(f"🔪 Splitting video into {args.split_equal} equal parts...")
+            # This would need to be implemented
+            print("❌ Equal splitting not implemented yet")
+            return
+        
+        # Detect scenes
         scenes = extractor.detect_scenes(
             threshold=args.threshold,
             min_scene_len=args.min_scene_len,
             detector_type=args.detector
         )
-    
-    if not scenes:
-        print("❌ Сцены не найдены")
+        
+        if not scenes:
+            print("❌ No scenes detected")
+            return
+        
+        # Save metadata
+        extractor.save_metadata()
+        
+        # Extract frames if requested
+        if args.extract_frames:
+            extractor.extract_frames(args.frame_type)
+        
+        # Extract clips if requested
+        if args.extract_clips:
+            extractor.extract_clips()
+        
+        # Generate HTML report if requested
+        if args.html:
+            extractor.generate_html_report()
+        
+        print(f"\n✨ Done! Results saved in: {extractor.output_dir}")
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
         sys.exit(1)
-    
-    # Извлекаем кадры если нужно
-    if args.extract_frames:
-        extractor.extract_frames(
-            frame_type=args.frame_type,
-            quality=args.quality
-        )
-    
-    # Извлекаем клипы если нужно
-    if args.extract_clips:
-        extractor.extract_clips()
-    
-    # Генерируем HTML отчет
-    if args.html:
-        extractor.generate_summary()
-    
-    print(f"\n✨ Готово! Результаты сохранены в: {extractor.output_dir}")
 
 
 if __name__ == "__main__":
