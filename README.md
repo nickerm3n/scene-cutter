@@ -28,10 +28,12 @@ course-parser/
 Create a `playlist.csv` file in the following format:
 
 ```csv
-Module,Link
-"7. Creating a Free Gemini AI API Token","https://example.com/video1.m3u8"
-"8. Advanced API Usage","https://example.com/video2.m3u8"
+Module,Link,Transcript
+"7. Creating a Free Gemini AI API Token","https://example.com/video1.m3u8","Video transcript text here..."
+"8. Advanced API Usage","https://example.com/video2.m3u8","Another video transcript..."
 ```
+
+**Note:** The `Transcript` column is optional. If provided, the transcript will be included in the HTML report above the scene information.
 
 ## Usage
 
@@ -118,7 +120,7 @@ pipeline_output_YYYYMMDD_HHMMSS/
 │       │   └── ...
 │       ├── clips/                  # Video clips (if --extract-clips)
 │       ├── scenes_metadata.json    # Scene metadata
-│       └── summary.html           # HTML report
+│       └── summary.html           # HTML report with transcript (if provided)
 ├── Module_Name_2/
 │   └── ...
 ├── pipeline.log                   # Detailed execution log
@@ -181,6 +183,17 @@ The system creates detailed logs:
 - `pipeline.log` - Detailed execution log
 - `pipeline_report.txt` - Final report with statistics
 - Console output with real-time progress
+
+## HTML Reports
+
+The system generates HTML reports for each module containing:
+
+- **Header section** with video information and scene count
+- **Transcript section** (if provided in CSV) with formatted text
+- **Scene sections** with timestamps, duration, and frame previews
+- **Responsive design** with clean styling
+
+The transcript is displayed in a scrollable section above the scene information, making it easy to read and reference while viewing the scene breakdown.
 
 ## Error Handling
 

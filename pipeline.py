@@ -133,9 +133,14 @@ class VideoPipeline:
                 sample = f.read(1024)
                 f.seek(0)
                 
-                # Determine delimiter
-                sniffer = csv.Sniffer()
-                delimiter = sniffer.sniff(sample).delimiter
+                # Determine delimiter - try semicolon first, then comma
+                if ';' in sample:
+                    delimiter = ';'
+                elif ',' in sample:
+                    delimiter = ','
+                else:
+                    sniffer = csv.Sniffer()
+                    delimiter = sniffer.sniff(sample).delimiter
                 
                 # Read CSV
                 reader = csv.DictReader(f, delimiter=delimiter)
@@ -168,11 +173,13 @@ class VideoPipeline:
                         # Get values considering spaces in column names
                         module = row.get('Module', '').strip() or row.get(' Module', '').strip()
                         link = row.get('Link', '').strip() or row.get(' Link', '').strip()
+                        transcript = row.get('Transcript', '').strip() or row.get(' Transcript', '').strip()
                         
                         if module and link:
                             modules.append({
                                 'module': module,
                                 'link': link,
+                                'transcript': transcript,
                                 'filename': self._sanitize_filename(module)
                             })
                 
@@ -280,6 +287,7 @@ class VideoPipeline:
         """
         module_name = module['module']
         filename = module['filename']
+        transcript = module.get('transcript', '')
         
         self._log(f"\n{'='*50}")
         self._log(f"🔍 STEP 2: SCENE PROCESSING")
@@ -310,6 +318,14 @@ class VideoPipeline:
             "--min-scene-len", str(self.config['scene_detection']['min_scene_len']),
             "--detector", self.config['scene_detection']['detector']
         ]
+        
+        # Add transcript if available
+        if transcript:
+            # Save transcript to temporary file to avoid command line length issues
+            transcript_file = module_dir / "transcript.txt"
+            with open(transcript_file, 'w', encoding='utf-8') as f:
+                f.write(transcript)
+            cmd.extend(["--transcript", str(transcript_file)])
         
         # Add optional parameters
         if self.config['scene_detection'].get('split_equal'):

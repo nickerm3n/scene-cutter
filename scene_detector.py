@@ -31,12 +31,13 @@ except ImportError:
 
 
 class SceneExtractor:
-    def __init__(self, video_path: str, output_dir: str = None):
+    def __init__(self, video_path: str, output_dir: str = None, transcript: str = None):
         """
         Initialize scene detector
         
         :param video_path: Path to video file
         :param output_dir: Directory for saving results
+        :param transcript: Transcript text to include in HTML report
         """
         self.video_path = Path(video_path)
         if not self.video_path.exists():
@@ -58,6 +59,7 @@ class SceneExtractor:
         
         self.scenes = []
         self.scene_list = []
+        self.transcript = transcript
         
     def detect_scenes(self, 
                      threshold: float = 30.0,
@@ -278,6 +280,18 @@ class SceneExtractor:
         if not self.scene_list:
             return
         
+        # Add transcript section if available
+        transcript_html = ""
+        if self.transcript:
+            transcript_html = f"""
+    <div class="transcript-section">
+        <h2>Transcript</h2>
+        <div class="transcript-content">
+            {self.transcript.replace(chr(10), '<br>').replace(chr(13), '')}
+        </div>
+    </div>
+"""
+        
         html_content = f"""
 <!DOCTYPE html>
 <html>
@@ -286,6 +300,16 @@ class SceneExtractor:
     <style>
         body {{ font-family: Arial, sans-serif; margin: 20px; }}
         .header {{ background: #f0f0f0; padding: 20px; border-radius: 5px; }}
+        .transcript-section {{ margin: 20px 0; padding: 20px; background: #f9f9f9; border-radius: 5px; }}
+        .transcript-content {{ 
+            background: white; 
+            padding: 15px; 
+            border-radius: 3px; 
+            border-left: 4px solid #007acc;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+        }}
         .scene {{ margin: 10px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }}
         .scene-number {{ font-weight: bold; color: #333; }}
         .scene-time {{ color: #666; }}
@@ -300,6 +324,7 @@ class SceneExtractor:
         <p><strong>Video:</strong> {self.video_path.name}</p>
         <p><strong>Total Scenes:</strong> {len(self.scene_list)}</p>
     </div>
+{transcript_html}
 """
         
         for i, (start, end) in enumerate(self.scene_list, 1):
@@ -424,11 +449,23 @@ Usage examples:
         help="Generate HTML report"
     )
     
+    parser.add_argument(
+        "--transcript",
+        help="Transcript text or file path to include in HTML report"
+    )
+    
     args = parser.parse_args()
     
     try:
+        # Process transcript parameter
+        transcript = args.transcript
+        if transcript and Path(transcript).exists():
+            # If transcript is a file path, read its contents
+            with open(transcript, 'r', encoding='utf-8') as f:
+                transcript = f.read()
+        
         # Create extractor
-        extractor = SceneExtractor(args.video, args.output)
+        extractor = SceneExtractor(args.video, args.output, transcript)
         
         if args.split_equal:
             # Split into equal parts
