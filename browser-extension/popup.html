@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Parser</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Course Parser</h1>
+        
+        <div class="status-section">
+            <div id="status" class="status">Готов к работе</div>
+        </div>
+        
+        <div class="controls">
+            <button id="extractBtn" class="btn btn-primary">Извлечь ссылки</button>
+            <button id="sendBtn" class="btn btn-secondary" disabled>Отправить на сервер</button>
+        </div>
+        
+        <div class="results-section">
+            <h3>Найденные ссылки:</h3>
+            <div id="linksList" class="links-list">
+                <div class="no-links">Ссылки не найдены</div>
+            </div>
+        </div>
+        
+        <div class="settings">
+            <h3>Настройки:</h3>
+            <div class="setting-item">
+                <label for="backendUrl">URL сервера:</label>
+                <input type="text" id="backendUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+            </div>
+            <div class="setting-item">
+                <label for="selectors">CSS селекторы (через запятую):</label>
+                <textarea id="selectors" placeholder="a[href], .video-link, .download-btn">a[href], .video-link, .download-btn, video source, source[src]</textarea>
+            </div>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

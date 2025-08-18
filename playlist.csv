@@ -1,2 +1,107 @@
-Module,Link
-"7. Creating a Free Gemini AI API Token","https://epam.udemy.com/assets/65239345/files/2025-05-19_13-24-42-6979b8a57f98bbb5c32652a7049536cc/2/aa00d8ccd5a63a7a4547e5de48985b43f309.m3u8?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXRoIjoiMjAyNS0wNS0xOV8xMy0yNC00Mi02OTc5YjhhNTdmOThiYmI1YzMyNjUyYTcwNDk1MzZjYy8yLyIsImV4cCI6MTc1NTI2ODU5M30.u1mviNKW5H7YtdvD18a9t2G5aRMHm3-1xUUwDE_nilE&provider=cloudfront&v=1"
+Module;Link;Transcript;;;;
+7. Creating a Free Gemini AI API Token;https://epam.udemy.com/assets/65239373/files/2025-05-19_13-24-39-e9b0432abed617654f061458eba3c9a6/2/aa00ec69985284ee7aa555e8a3d2c689505c.m3u8?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXRoIjoiMjAyNS0wNS0xOV8xMy0yNC0zOS1lOWIwNDMyYWJlZDYxNzY1NGYwNjE0NThlYmEzYzlhNi8yLyIsImV4cCI6MTc1NTI4OTIzNH0.R0JMG9VJNNioGiDic0xrOa86hERGpmdJgemCBuC4SuM&provider=cloudfront&v=1;"I'm super excited to discuss this piece of the course with you, because I believe that if you understand
+this specific video, then you're gonna have a very, very good mental model about how agents work and
+what you can do with them.
+So I hope you will like it and that you will understand it, because this will open us the mental way
+to think about how agents work and how MSPs work.
+Now here is the thing.
+So if you think about how you interact with a chat UI, an LLM like ChatGPT or Claude or or Gemini,
+then usually your interaction is very easy.
+You send a chat message, you receive a response, you chat, you send a follow up message, and again
+you receive a response.
+That's super simple, right?
+Of course you might do some other things like attach an image or upload some documents, or include
+work in projects or upload assets whatsoever.
+But this is the basic workflow.
+But there is so much more that happens behind the scenes, behind the scenes.
+This is very much what happens here.
+Are you.
+And then there is an lm API so that the UI but an API.
+And if you communicate directly to the API, then you must provide much more context with each call,
+as if you work with the ChatGPT UI, for example, because ChatGPT and all the others do this for you
+automatically.
+Now what happens here is that you send a so-called message request, but you can think about it as a
+as a message where you send not only your York current message.
+But you also send the system prompt.
+So some instructions about what to expect from the model to do.
+This is usually optional.
+Then you also send the chat history.
+So by default LMS if you communicate through the API they don't remember the chat history.
+You need to send a whole conversation in each request and keep track of this conversation yourself on
+the client side.
+And then you might send a bunch of other things.
+That's why you see this here in braces.
+You can send, for example, the maximum number of output tokens that you want to pay for.
+So for example, you can instruct ChatGPT or Cloud or Gemini to to cut off the message when it hits
+a certain number of tokens.
+Like think about it like cutting off the message when it hits like 20 words in the response, because
+you don't want to pay for more.
+And then you also send a message.
+Right?
+So your content the payload itself.
+So this is what happens.
+And then you get a response.
+And in the response you receive things like the message itself or the response message.
+This is what you would see on the ChatGPT UI two.
+And you also have depending on the on the LLM provider, you might have a stop reason.
+The stop reason might be simply stop, which means it's all good.
+You get all the response, but the stop reason can be for example, stopping generation because it would
+have generated offensive content or it would have leaked personally identifiable information whatsoever.
+So you can also inspect the stop reason.
+You will see how many tokens you used.
+And also in with some providers you can see the price of your request like how much you paid for for
+this specific request.
+And of course, as you probably know, you can go to Anthropic's website or OpenAI's website and just
+sign up for an API key, upload your balance with a a few tens of dollars, and then start using these
+platforms through the API right away.
+Okay.
+And this goes on like that, right?
+You have a follow up request and then you have a response.
+Now here is one thing that many people don't know about.
+And this will be the most important piece in the whole course I would say.
+And this is called the LLM tool use.
+Now what happens is that you not only can send messages, and the LLM backend not only can respond with
+a message, but there is also a meta communication layer between you and the LM.
+So for example, if you have a function defined in your Python environment which can get the current
+price of a crypto symbol, let's say Bitcoin, then what you can do is that you can extend the LMS functionality
+by providing this function to the LM, and it's not like it doesn't go that way, that you send this
+function to the LM and it will execute it, uh, in their own infrastructure.
+But it goes in a way that you implement your function for yourself in your Python file or Jupyter notebook.
+And then when you send the message request, then you also add a metadata, a so-called tool use or
+function calling metadata where you say, oh, and I also have this function.
+Now this function is called get crypto price.
+It accepts one parameter called symbol which is the crypto symbol, and it gets the current price of
+the cryptocurrency.
+This you can define in a metadata and just send it to the LM.
+Now the LM takes note of it.
+It says oh cool, I got it.
+You have a function like that.
+And then you can keep on working, keep on working.
+And at one point you might get into a situation where in order to the LM to generate a meaningful response,
+it would need the current price of a cryptocurrency.
+And then what it will do is that in its response, it won't come back to you with a message, but it
+will use an other part of the response, like telling you kind of on a meta level that, Hey, before
+I get back to you with a message, can you please call your function that you told me you have the get
+crypto price function with this and that parameters, and then you can go execute the function on your
+computer and then send the follow up request.
+The follow up request in this case can be just a very standard LM message which says for example, sure,
+the current price of Bitcoin is this and that, and then the LM will go on and for example, write a
+haiku about the current price of Bitcoin, if that was the original request.
+So this is the most important piece of agents that they can expose functionality to each other.
+So you can expose functionality to an LM.
+Now think about that.
+Probably an even better use case would be to provide web search functionality to an LLM.
+Now, most of the LMS can do that.
+At least most of the Hastie LMS managed LMS can do that automatically, but you could simply just connect,
+for example, to perplexity, sign up for an API key and then write a function that can do a perplexity,
+search and return with perplexity.
+Answer to the LLM.
+And in this case you would be able to tell the LLM.
+Hey, I have this function.
+It's called perplexity search.
+It takes a keyword argument and returns with a bunch of jsons about the, uh, the response.
+So just let me know when you need to search the web, and then the LLM will reach out to you in a response
+whenever it needs external information.
+So this is the big thing with LMS.
+And this is what enables cooperative agents.
+I see you in the next video.";;;;
