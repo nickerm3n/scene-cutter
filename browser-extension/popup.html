@@ -16,6 +16,8 @@
         
         <div class="controls">
             <button id="extractBtn" class="btn btn-primary">Извлечь ссылки</button>
+            <button id="transcriptBtn" class="btn btn-primary">Извлечь транскрипт</button>
+            <button id="courseBtn" class="btn btn-primary">Извлечь курс</button>
             <button id="sendBtn" class="btn btn-secondary" disabled>Отправить на сервер</button>
         </div>
         
@@ -23,6 +25,20 @@
             <h3>Найденные ссылки:</h3>
             <div id="linksList" class="links-list">
                 <div class="no-links">Ссылки не найдены</div>
+            </div>
+        </div>
+        
+        <div class="results-section">
+            <h3>Транскрипт:</h3>
+            <div id="transcriptContainer" class="transcript-container">
+                <div class="no-transcript">Транскрипт не найден</div>
+            </div>
+        </div>
+        
+        <div class="results-section">
+            <h3>Курс:</h3>
+            <div id="courseContainer" class="course-container">
+                <div class="no-course">Курс не извлечен</div>
             </div>
         </div>
         
