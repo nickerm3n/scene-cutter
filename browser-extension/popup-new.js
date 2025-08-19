@@ -21,7 +21,6 @@ async function initializeApp() {
     
     // Обновляем UI
     updateSettingsUI();
-    updateUI([]);
     
     console.log('[Course Parser] Приложение инициализировано');
   } catch (error) {

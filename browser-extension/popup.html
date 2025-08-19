@@ -16,25 +16,7 @@
         </div>
         
         <div class="controls">
-            <button id="extractBtn" class="btn btn-primary">Извлечь ссылки</button>
-            <button id="transcriptBtn" class="btn btn-primary">Извлечь транскрипт</button>
             <button id="courseBtn" class="btn btn-primary">Извлечь курс</button>
-            <button id="processItemBtn" class="btn btn-primary">Обработать элемент</button>
-            <button id="sendBtn" class="btn btn-secondary" disabled>Отправить на сервер</button>
-        </div>
-        
-        <div class="results-section">
-            <h3>Найденные ссылки:</h3>
-            <div id="linksList" class="links-list">
-                <div class="no-links">Ссылки не найдены</div>
-            </div>
-        </div>
-        
-        <div class="results-section">
-            <h3>Транскрипт:</h3>
-            <div id="transcriptContainer" class="transcript-container">
-                <div class="no-transcript">Транскрипт не найден</div>
-            </div>
         </div>
         
         <div class="results-section">
@@ -47,12 +29,8 @@
         <div class="settings">
             <h3>Настройки:</h3>
             <div class="setting-item">
-                <label for="backendUrl">URL сервера:</label>
-                <input type="text" id="backendUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
-            </div>
-            <div class="setting-item">
-                <label for="selectors">CSS селекторы (через запятую):</label>
-                <textarea id="selectors" placeholder="a[href], .video-link, .download-btn">a[href], .video-link, .download-btn, video source, source[src]</textarea>
+                <label for="maxSections">Максимум секций (0 = все секции):</label>
+                <input type="number" id="maxSections" value="1" min="0" placeholder="1">
             </div>
         </div>
     </div>

@@ -1,4 +1,4 @@
-import { CONFIG } from "./config.js";
+import { CONFIG, currentSettings } from "./config.js";
 import { setStatus, executeScriptOnPage, delay } from "./utils.js";
 import { updateCourseDisplay } from "./ui.js";
 import { saveCourseToStorage } from "./storage.js";
@@ -7,6 +7,13 @@ import { saveCourseToStorage } from "./storage.js";
 export async function handleCourse() {
   try {
     setStatus("Извлечение курса...", "loading");
+
+    // Убеждаемся, что настройки загружены
+    if (!currentSettings.maxSections) {
+      currentSettings.maxSections = 1; // значение по умолчанию
+    }
+    
+    console.log("Настройки maxSections:", currentSettings.maxSections);
 
     // 1. Сначала кликаем по кнопке Course content
     const clickResult = await executeScriptOnPage(clickCourseContentButton);
@@ -24,7 +31,7 @@ export async function handleCourse() {
       
       // 2-15. Запускаем полный алгоритм парсинга
       setStatus("Начинаем парсинг курса...", "loading");
-      const courseData = await executeScriptOnPage(parseFullCourse);
+      const courseData = await executeScriptOnPage(parseFullCourse, [currentSettings.maxSections]);
       
       if (courseData && courseData[0] && courseData[0].result) {
         const data = courseData[0].result;
@@ -106,7 +113,9 @@ function clickCourseContentButton() {
 }
 
 // Основная функция парсинга курса (выполняется в контексте страницы)
-async function parseFullCourse() {
+// maxSections: количество секций для обработки (0 = все секции, 1+ = ограничение)
+async function parseFullCourse(maxSections = 1) {
+  console.log("parseFullCourse вызвана с maxSections:", maxSections);
   // Вспомогательные функции (должны быть внутри для доступа в контексте страницы)
   
   // Функция для ожидания появления элемента
@@ -272,8 +281,10 @@ async function parseFullCourse() {
       throw new Error('Секции курса не найдены');
     }
 
-    // 4. Цикл по секциям (для тестирования - только первая секция)
-    for (let sectionIndex = 0; sectionIndex < Math.min(1, sectionPanels.length); sectionIndex++) {
+    // 4. Цикл по секциям (ограниченный настройкой maxSections)
+    const sectionsToProcess = maxSections === 0 ? sectionPanels.length : Math.min(maxSections, sectionPanels.length);
+    console.log(`Будет обработано ${sectionsToProcess} секций из ${sectionPanels.length} (maxSections: ${maxSections})`);
+    for (let sectionIndex = 0; sectionIndex < sectionsToProcess; sectionIndex++) {
       // Заново находим секции после каждого возврата к списку
       const curriculumContainer = document.querySelector('[data-purpose="curriculum-section-container"]');
       const currentSectionPanels = curriculumContainer?.querySelectorAll('[data-purpose^="section-panel-"]');
@@ -295,7 +306,7 @@ async function parseFullCourse() {
           type: 'PROGRESS_UPDATE',
           data: {
             currentSection: sectionIndex + 1,
-            totalSections: sectionPanels.length,
+            totalSections: sectionsToProcess,
             sectionTitle: sectionTitle,
             status: 'Обработка секции'
           }
@@ -363,7 +374,7 @@ async function parseFullCourse() {
                 type: 'PROGRESS_UPDATE',
                 data: {
                   currentSection: sectionIndex + 1,
-                  totalSections: sectionPanels.length,
+                  totalSections: sectionsToProcess,
                   currentItem: itemIndex + 1,
                   totalItems: listItems.length,
                   sectionTitle: sectionTitle,
