@@ -105,3 +105,36 @@ export function formatDate(date) {
 export function getTimestamp() {
   return new Date().toISOString();
 }
+
+// Утилиты для работы с микросервисом
+export async function sendCourseToMicroservice(courseData, microserviceUrl) {
+  try {
+    console.log(`Отправляем данные курса на микросервис: ${microserviceUrl}`);
+    
+    const response = await fetch(`${microserviceUrl}/api/course`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(courseData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Ответ от микросервиса:', result);
+    
+    return {
+      success: true,
+      data: result
+    };
+  } catch (error) {
+    console.error('Ошибка при отправке данных на микросервис:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}

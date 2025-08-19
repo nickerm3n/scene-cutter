@@ -96,6 +96,12 @@ export function setupEventListeners() {
       module.saveSettings();
     });
   });
+
+  DOM_ELEMENTS.microserviceUrlInput.addEventListener("change", () => {
+    import('./config.js').then(module => {
+      module.saveSettings();
+    });
+  });
 }
 
 // Глобальные функции для вызова из HTML

@@ -1,5 +1,5 @@
 import { CONFIG, currentSettings } from "./config.js";
-import { setStatus, executeScriptOnPage, delay } from "./utils.js";
+import { setStatus, executeScriptOnPage, delay, sendCourseToMicroservice } from "./utils.js";
 import { updateCourseDisplay } from "./ui.js";
 import { saveCourseToStorage } from "./storage.js";
 
@@ -43,8 +43,17 @@ export async function handleCourse() {
         // Обновляем UI
         updateCourseDisplay(data);
         
-        const totalItems = data.sections.reduce((sum, section) => sum + section.items.length, 0);
-        setStatus(`Извлечено ${data.sections.length} секций, ${totalItems} элементов`, "success");
+        // Отправляем данные на микросервис
+        setStatus("Отправляем данные на микросервис...", "loading");
+        const microserviceResult = await sendCourseToMicroservice(data, currentSettings.microserviceUrl);
+        
+        if (microserviceResult.success) {
+          const totalItems = data.sections.reduce((sum, section) => sum + section.items.length, 0);
+          setStatus(`Извлечено ${data.sections.length} секций, ${totalItems} элементов. Данные отправлены на микросервис!`, "success");
+        } else {
+          const totalItems = data.sections.reduce((sum, section) => sum + section.items.length, 0);
+          setStatus(`Извлечено ${data.sections.length} секций, ${totalItems} элементов. Ошибка отправки на микросервис: ${microserviceResult.error}`, "error");
+        }
       } else {
         throw new Error("Не удалось извлечь данные курса");
       }
