@@ -1,6 +1,22 @@
-import { DOM_ELEMENTS } from './config.js';
+import { DOM_ELEMENTS, CONFIG } from './config.js';
 import { setStatus, copyToClipboard, updateUI } from './utils.js';
 import { exportCourseData, clearCourseData } from './storage.js';
+
+// Отображение версии в UI
+export function displayVersion() {
+  const versionElement = document.getElementById('version');
+  if (versionElement) {
+    const buildDate = new Date(CONFIG.BUILD_DATE).toLocaleString();
+    versionElement.innerHTML = `
+      <div style="font-size: 10px; color: #7f8c8d; text-align: center; padding: 5px;">
+        v${CONFIG.VERSION} | ${buildDate}
+      </div>
+    `;
+  }
+  
+  // Также выводим в консоль для отладки
+  console.log(`[Course Parser] Version: ${CONFIG.VERSION} | Build: ${CONFIG.BUILD_DATE}`);
+}
 
 // Обновление списка ссылок в UI
 export function updateLinksList(extractedLinks = []) {

@@ -1,5 +1,7 @@
 // Конфигурация приложения
 export const CONFIG = {
+  VERSION: "1.0.0",
+  BUILD_DATE: new Date().toISOString(),
   DEFAULT_BACKEND_URL: "http://localhost:8000",
   DEFAULT_SELECTORS: "a[href], .video-link, .download-btn, video source, source[src]",
   SELECTORS: {

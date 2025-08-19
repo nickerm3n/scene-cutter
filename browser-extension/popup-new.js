@@ -5,13 +5,16 @@ import {
   DOM_ELEMENTS 
 } from './config.js';
 import { updateUI } from './utils.js';
-import { setupEventListeners } from './ui.js';
+import { setupEventListeners, displayVersion } from './ui.js';
 
 // Инициализация приложения
 async function initializeApp() {
   try {
     // Загружаем настройки
     await loadSettings();
+    
+    // Отображаем версию
+    displayVersion();
     
     // Настраиваем обработчики событий
     setupEventListeners();

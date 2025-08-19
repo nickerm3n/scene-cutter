@@ -1,14 +1,14 @@
-import { CONFIG } from './config.js';
-import { setStatus, executeScriptOnPage, delay } from './utils.js';
-import { updateCourseDisplay } from './ui.js';
-import { saveCourseToStorage } from './storage.js';
+import { CONFIG } from "./config.js";
+import { setStatus, executeScriptOnPage, delay } from "./utils.js";
+import { updateCourseDisplay } from "./ui.js";
+import { saveCourseToStorage } from "./storage.js";
 
 // Обработка извлечения курса
 export async function handleCourse() {
   try {
     setStatus("Извлечение курса...", "loading");
 
-    // Сначала кликаем по кнопке Course content
+    // 1. Сначала кликаем по кнопке Course content
     const clickResult = await executeScriptOnPage(clickCourseContentButton);
 
     if (
@@ -18,38 +18,30 @@ export async function handleCourse() {
       clickResult[0].result.success
     ) {
       console.log("Клик выполнен успешно, ждем появления аккордеона...");
-
-      // Ждем появления аккордеона
-      await delay(CONFIG.DELAYS.COURSE_CONTENT_LOAD);
-
-      console.log("Начинаем извлечение секций...");
-
-      // Теперь извлекаем структуру курса
-      const extractResult = await executeScriptOnPage(extractAccordionSections);
-
-      if (extractResult && extractResult[0] && extractResult[0].result) {
-        const courseData = extractResult[0].result;
-        console.log("Извлеченная структура курса", courseData);
-
-        if (courseData.success) {
-          setStatus(
-            `Курс извлечен: ${courseData.sections.length} секций`,
-            "success"
-          );
-          updateCourseDisplay(courseData);
-
-          // Сохраняем в localStorage
-          saveCourseToStorage(courseData);
-        } else {
-          setStatus(
-            "Ошибка при извлечении курса: " + courseData.error,
-            "error"
-          );
-          updateCourseDisplay(null);
-        }
+      
+      // Делаем маленькую паузу
+      await delay(1000);
+      
+      // 2-15. Запускаем полный алгоритм парсинга
+      setStatus("Начинаем парсинг курса...", "loading");
+      const courseData = await executeScriptOnPage(parseFullCourse);
+      
+      if (courseData && courseData[0] && courseData[0].result) {
+        const data = courseData[0].result;
+        console.log("Данные курса извлечены:", data);
+        
+        // Сохраняем данные в storage
+        await saveCourseToStorage(data);
+        
+        // Обновляем UI
+        updateCourseDisplay(data);
+        
+        const totalItems = data.sections.reduce((sum, section) => sum + section.items.length, 0);
+        setStatus(`Извлечено ${data.sections.length} секций, ${totalItems} элементов`, "success");
       } else {
-        throw new Error("Не удалось извлечь структуру курса");
+        throw new Error("Не удалось извлечь данные курса");
       }
+
     } else {
       throw new Error("Не удалось открыть Course content");
     }
@@ -113,357 +105,327 @@ function clickCourseContentButton() {
   }
 }
 
-// Функция для извлечения секций аккордеона (выполняется в контексте страницы)
-async function extractAccordionSections() {
-  try {
-    console.log("Ищем секции аккордеона...");
-
-    // Ищем все панели аккордеона по точному селектору
-    let accordionPanels = document.querySelectorAll('[data-purpose^="section-panel-"]');
-
-    console.log(`Найдено панелей аккордеона: ${accordionPanels.length}`);
-
-    if (accordionPanels.length === 0) {
-      // Попробуем альтернативные селекторы
-      accordionPanels = document.querySelectorAll(
-        '[data-purpose^="section-panel"]'
-      );
-    }
-
-    if (accordionPanels.length === 0) {
-      // Попробуем альтернативные селекторы
-      accordionPanels = document.querySelectorAll(
-        '[class*="accordion-panel"]'
-      );
-    }
-
-    if (accordionPanels.length === 0) {
-      // Попробуем альтернативные селекторы
-      accordionPanels = document.querySelectorAll(
-        '[class*="panel"], [data-purpose*="panel"]'
-      );
-    }
-
-    console.log("Найдено панелей аккордеона", accordionPanels.length);
-
-    // Выводим информацию о найденных панелях
-    accordionPanels.forEach((panel, index) => {
-      const dataPurpose = panel.getAttribute("data-purpose");
-      console.log(`Панель ${index}: data-purpose="${dataPurpose}"`);
+// Основная функция парсинга курса (выполняется в контексте страницы)
+async function parseFullCourse() {
+  // Вспомогательные функции (должны быть внутри для доступа в контексте страницы)
+  
+  // Функция для ожидания появления элемента
+  async function waitForElement(selector, timeout = 10000) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const element = document.querySelector(selector);
+        resolve(element);
+      }, timeout);
     });
+  }
 
-    if (accordionPanels.length === 0) {
-      return {
-        success: false,
-        error: "Панели аккордеона не найдены",
-      };
-    }
-
-    const sections = [];
-
-    for (
-      let sectionIndex = 0;
-      sectionIndex < accordionPanels.length;
-      sectionIndex++
-    ) {
-      const panel = accordionPanels[sectionIndex];
-
-      // Извлекаем название секции (несколько способов)
-      let sectionTitleElement = panel.querySelector(
-        ".ud-accordion-panel-title span"
-      );
-      if (!sectionTitleElement) {
-        sectionTitleElement = panel.querySelector(
-          '[class*="accordion-panel-title"] span'
-        );
-      }
-      if (!sectionTitleElement) {
-        sectionTitleElement = panel.querySelector(
-          '[class*="panel-title"] span, [data-purpose*="title"]'
-        );
-      }
-
-      const sectionTitle = sectionTitleElement
-        ? sectionTitleElement.textContent.trim()
-        : `Section ${sectionIndex + 1}`;
-
-      console.log(`Обрабатываем секцию: ${sectionTitle}`);
-
-      // Проверяем, развернута ли секция
-      const contentWrapper = panel.querySelector(
-        ".accordion-panel-module--content-wrapper--TkHqe"
-      );
-      const isExpanded =
-        contentWrapper &&
-        contentWrapper.getAttribute("aria-hidden") === "false";
-
-      console.log(`Секция ${sectionTitle} развернута: ${isExpanded}`);
-
-      // Если секция свернута, разворачиваем её
-      if (!isExpanded) {
-        const toggleButton = panel.querySelector(".js-panel-toggler");
-        if (toggleButton) {
-          console.log(`Разворачиваем секцию: ${sectionTitle}`);
-          toggleButton.click();
-          // Ждем немного, чтобы секция развернулась
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-
-      // Ищем все элементы в секции (несколько способов)
-      let items = panel.querySelectorAll('[data-purpose^="curriculum-item-"]');
-
-      console.log(`В секции ${sectionIndex} найдено элементов: ${items.length}`);
-
-      if (items.length === 0) {
-        items = panel.querySelectorAll(
-          '[data-purpose^="curriculum-item"]'
-        );
-      }
-
-      if (items.length === 0) {
-        items = panel.querySelectorAll(CONFIG.SELECTORS.ITEM_TITLE);
-      }
-
-      if (items.length === 0) {
-        items = panel.querySelectorAll(
-          '[class*="item-title"], [data-purpose*="title"]'
-        );
-      }
-
-      console.log(`Найдено элементов в секции "${sectionTitle}":`, items.length);
-
-      // Выводим информацию о найденных элементах
-      items.forEach((item, index) => {
-        const dataPurpose = item.getAttribute("data-purpose");
-        const title =
-          item
-            .querySelector('[data-purpose="item-title"]')
-            ?.textContent?.trim() || "Без названия";
-        console.log(`  Элемент ${index}: data-purpose="${dataPurpose}", title="${title}"`);
-      });
-
-      const sectionItems = [];
-
-      // Обрабатываем каждый элемент в секции
-      for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-        const item = items[itemIndex];
-
-        // Извлекаем заголовок элемента
-        let itemTitle = "";
-        let videoLink = null;
-        let dataPurpose = item.getAttribute("data-purpose");
-
-        // Если это элемент curriculum-item
-        if (
-          dataPurpose &&
-          dataPurpose.startsWith("curriculum-item")
-        ) {
-          // Ищем заголовок внутри элемента
-          const titleElement = item.querySelector(
-            '[data-purpose="item-title"]'
-          );
-          if (titleElement) {
-            itemTitle = titleElement.textContent.trim();
-          } else {
-            itemTitle = item.textContent.trim();
-          }
-
-                  console.log(`Кликаем по элементу: ${itemTitle} (${dataPurpose})`);
-
-        // Кликаем по элементу, чтобы загрузить видео
-        item.click();
-
-          // Ждем загрузки видео
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-
-          // Ищем видео после клика
-          const videoElement = document.querySelector("video");
-          if (videoElement) {
-            // Ищем source внутри video
-            const sourceElement =
-              videoElement.querySelector("source");
-            if (sourceElement) {
-              videoLink =
-                sourceElement.src ||
-                sourceElement.getAttribute("src");
-              console.log(`Найдена ссылка на видео: ${videoLink}`);
-            } else {
-              // Если нет source, берем src самого video
-              videoLink =
-                videoElement.src || videoElement.getAttribute("src");
-              console.log(`Найдена ссылка на видео (без source): ${videoLink}`);
-            }
-          }
-
-          // Извлекаем транскрипт для этого элемента
-          let transcript = null;
-          try {
-            // Ищем кнопку транскрипта
-            const transcriptButton = document.querySelector(
-              'button[data-purpose="transcript-toggle"]'
-            );
-            if (transcriptButton) {
-              console.log("Кликаем по кнопке транскрипта...");
-              transcriptButton.click();
-
-              // Ждем появления панели транскрипта
-              await new Promise((resolve) =>
-                setTimeout(resolve, 1500)
-              );
-
-              // Ищем панель транскрипта
-              let transcriptPanel = document.querySelector(
-                CONFIG.SELECTORS.TRANSCRIPT_PANEL
-              );
-
-              // Если не найдена, пробуем альтернативные селекторы
-              if (!transcriptPanel) {
-                transcriptPanel = document.querySelector(
-                  '[data-purpose="transcript-panel"]'
-                );
-              }
-
-              if (!transcriptPanel) {
-                transcriptPanel = document.querySelector(
-                  '[class*="transcript-panel"]'
-                );
-              }
-
-              if (transcriptPanel) {
-                console.log("Панель транскрипта найдена, извлекаем текст...");
-
-                // Извлекаем текст транскрипта - пробуем несколько селекторов
-                let cueElements = transcriptPanel.querySelectorAll(
-                  '[data-purpose="cue-text"]'
-                );
-
-                // Если не найдены, пробуем альтернативные селекторы
-                if (cueElements.length === 0) {
-                  cueElements = transcriptPanel.querySelectorAll(
-                    '[class*="cue-text"]'
-                  );
-                }
-
-                if (cueElements.length === 0) {
-                  cueElements =
-                    transcriptPanel.querySelectorAll(
-                      'span[class*="cue"]'
-                    );
-                }
-
-                if (cueElements.length === 0) {
-                  // Пробуем найти все span элементы внутри cue-container
-                  cueElements = transcriptPanel.querySelectorAll(
-                    '[class*="cue-container"] span'
-                  );
-                }
-
-                console.log(`Найдено элементов транскрипта: ${cueElements.length}`);
-
-                const textParts = [];
-
-                cueElements.forEach((cue, index) => {
-                  const text = cue.textContent?.trim();
-                  if (text) {
-                    textParts.push(`${index + 1}. ${text}`);
-                    console.log(`Фраза ${index + 1}:`, text);
-                  }
-                });
-
-                transcript = textParts.join("\n\n");
-                console.log(`Транскрипт извлечен (${transcript.length} символов)`);
-              } else {
-                console.log("Панель транскрипта не найдена");
-              }
-            } else {
-              console.log("Кнопка транскрипта не найдена");
-            }
-          } catch (error) {
-            console.error("Ошибка при извлечении транскрипта", error);
-            transcript = null; // Убеждаемся, что transcript определен
-          }
-        } else if (dataPurpose === "item-title") {
-          // Если это span с заголовком
-          itemTitle = item.textContent.trim();
-          // Ищем родительский элемент с ссылкой
-          const parentLink =
-            item.closest("a") ||
-            item.closest('[data-purpose^="curriculum-item"]');
-          if (parentLink) {
-            videoLink =
-              parentLink.href || parentLink.getAttribute("href");
-            dataPurpose =
-              parentLink.getAttribute("data-purpose") || dataPurpose;
-          }
-        } else {
-          // Fallback
-          itemTitle = item.textContent.trim();
-          videoLink = item.href || item.getAttribute("href");
-        }
-
-        console.log(`Обработан элемент: ${itemTitle}`);
-        console.log(`Ссылка на видео: ${videoLink}`);
-        console.log(`Data-purpose: ${dataPurpose}`);
-        console.log(`Транскрипт: ${transcript ? transcript.length + " символов" : "не найден"}`);
-
-        // Создаем объект элемента
-        const itemData = {
-          title: itemTitle,
-          videoUrl: videoLink,
-          transcript: transcript,
-          index: itemIndex + 1,
-          dataPurpose: dataPurpose || "unknown",
-        };
-
-        sectionItems.push(itemData);
-      }
-
-      // Создаем объект секции
-      const sectionData = {
-        title: sectionTitle,
-        items: sectionItems,
-        index: sectionIndex + 1,
-      };
-
-      sections.push(sectionData);
-    }
-
-    console.log("Извлеченные секции", sections);
-
-    // Фильтруем дублирующиеся секции и пустые секции
-    const uniqueSections = sections.filter((section, index, self) => {
-      // Удаляем пустые секции
-      if (section.items.length === 0) {
-        console.log(`Удаляем пустую секцию: ${section.title}`);
+  // Функция для безопасного клика по элементу
+  async function safeClick(element, description = 'элемент') {
+    try {
+      if (!element) {
+        console.warn(`Элемент для клика не найден: ${description}`);
         return false;
       }
 
-      // Удаляем дублирующиеся секции по названию
-      const firstIndex = self.findIndex(
-        (s) => s.title === section.title
-      );
-      if (firstIndex !== index) {
-        console.log(`Удаляем дублирующуюся секцию: ${section.title}`);
+      console.log('Element ====>', element);
+
+      // Проверяем, видим ли элемент
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.warn(`Элемент не видим: ${description}`);
         return false;
       }
 
+      // Прокручиваем к элементу если нужно
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Кликаем
+      element.click();
+      console.log(`Клик выполнен: ${description}`);
       return true;
-    });
+    } catch (error) {
+      console.error(`Ошибка при клике по ${description}:`, error);
+      return false;
+    }
+  }
 
-    console.log("Отфильтрованные секции", uniqueSections);
+  // Функция для поиска видео URL
+  async function findVideoUrl() {
+    try {
+      // Пробуем разные селекторы для видео
+      const videoSelectors = [
+        'video.video-player--video-player--HiAnq',
+        'video[controlslist="nodownload"]',
+        'video source',
+        'video'
+      ];
 
-    // Возвращаем структуру курса
+      for (const selector of videoSelectors) {
+        const videoElement = await waitForElement(selector, 5000);
+        if (videoElement) {
+          // Если это source элемент
+          if (videoElement.tagName === 'SOURCE') {
+            if (videoElement.src) {
+              return videoElement.src;
+            }
+          }
+          // Если это video элемент
+          else if (videoElement.tagName === 'VIDEO') {
+            const sourceElement = videoElement.querySelector('source');
+            if (sourceElement && sourceElement.src) {
+              return sourceElement.src;
+            }
+            // Проверяем src самого video элемента
+            if (videoElement.src) {
+              return videoElement.src;
+            }
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Ошибка при поиске видео URL:', error);
+      return null;
+    }
+  }
+
+  // Функция для извлечения транскрипта
+  async function extractTranscript() {
+    try {
+      let transcript = '';
+      
+      // Проверяем, есть ли уже открытая панель транскрипта
+      let transcriptPanel = await waitForElement('[data-purpose="transcript-panel"]', 2000);
+      
+      if (!transcriptPanel) {
+        // Если панель не открыта, кликаем на кнопку транскрипта
+        const transcriptButton = await waitForElement('[data-purpose="transcript-toggle"]', 3000);
+        if (transcriptButton) {
+          await safeClick(transcriptButton, 'кнопка транскрипта');
+          // Ждем появления панели
+          transcriptPanel = await waitForElement('[data-purpose="transcript-panel"]', 5000);
+        }
+      }
+
+      // Читаем транскрипт
+      if (transcriptPanel) {
+        const transcriptTexts = transcriptPanel.querySelectorAll('[data-purpose="cue-text"]');
+        transcript = Array.from(transcriptTexts)
+          .map(el => el.textContent?.trim())
+          .filter(text => text)
+          .join('\n');
+      }
+
+      return transcript;
+    } catch (error) {
+      console.error('Ошибка при извлечении транскрипта:', error);
+      return '';
+    }
+  }
+
+  // Функция для возврата к списку секций
+  async function returnToCourseContent() {
+    try {
+      const courseContentButton = document.evaluate(
+        '//span[text()="Course content"]',
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      
+      if (courseContentButton) {
+        const button = courseContentButton.closest("button");
+        if (button) {
+          await safeClick(button, 'кнопка Course content');
+          // Пауза 4 секунды
+          await new Promise(resolve => setTimeout(resolve, 4000));
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при возврате к Course content:', error);
+    }
+  }
+
+  // Основная логика парсинга
+  try {
     const courseData = {
-      url: window.location.href,
       title: document.title,
-      sections: uniqueSections,
-      extractedAt: new Date().toISOString(),
+      url: window.location.href,
+      sections: [],
+      extractedAt: new Date().toISOString()
     };
 
-    return { success: true, ...courseData };
+    // 2. Ищем контейнер с секциями
+    const curriculumContainer = document.querySelector('[data-purpose="curriculum-section-container"]');
+    if (!curriculumContainer) {
+      throw new Error('Контейнер curriculum-section-container не найден');
+    }
+
+    // 3. Находим все секции
+    const sectionPanels = curriculumContainer.querySelectorAll('[data-purpose^="section-panel-"]');
+    console.log(`Найдено ${sectionPanels.length} секций`);
+
+    if (sectionPanels.length === 0) {
+      throw new Error('Секции курса не найдены');
+    }
+
+    // 4. Цикл по секциям (для тестирования - только первая секция)
+    for (let sectionIndex = 0; sectionIndex < Math.min(1, sectionPanels.length); sectionIndex++) {
+      // Заново находим секции после каждого возврата к списку
+      const curriculumContainer = document.querySelector('[data-purpose="curriculum-section-container"]');
+      const currentSectionPanels = curriculumContainer?.querySelectorAll('[data-purpose^="section-panel-"]');
+      
+      if (!currentSectionPanels || sectionIndex >= currentSectionPanels.length) {
+        console.warn(`Не удалось найти секцию ${sectionIndex}`);
+        continue;
+      }
+      
+      const sectionPanel = currentSectionPanels[sectionIndex];
+      
+      try {
+        // Получаем заголовок секции
+        const sectionTitle = sectionPanel.querySelector('.ud-accordion-panel-title')?.textContent?.trim() || `Секция ${sectionIndex + 1}`;
+        console.log(`Обрабатываем секцию: ${sectionTitle}`);
+        
+        // Отправляем прогресс
+        chrome.runtime.sendMessage({
+          type: 'PROGRESS_UPDATE',
+          data: {
+            currentSection: sectionIndex + 1,
+            totalSections: sectionPanels.length,
+            sectionTitle: sectionTitle,
+            status: 'Обработка секции'
+          }
+        });
+        
+        const sectionData = {
+          title: sectionTitle,
+          items: []
+        };
+
+        // Кликаем на секцию чтобы раскрыть
+        const sectionTitleElement = sectionPanel.querySelector('.ud-accordion-panel-title');
+        if (sectionTitleElement) {
+          await safeClick(sectionTitleElement, `секция "${sectionTitle}"`);
+        } else {
+          console.warn(`Не найден элемент с классом ud-accordion-panel-title для секции "${sectionTitle}"`);
+          // Fallback - кликаем на весь блок секции
+          await safeClick(sectionPanel, `секция "${sectionTitle}"`);
+        }
+        
+        // Пауза 4 секунды
+        await new Promise(resolve => setTimeout(resolve, 4000));
+
+        // 5. Ищем список элементов внутри секции
+        const itemsList = sectionPanel.querySelector('.ud-unstyled-list');
+        if (itemsList) {
+          const listItems = itemsList.querySelectorAll('li');
+          console.log(`Найдено ${listItems.length} элементов в секции ${sectionTitle}`);
+
+          // 6-13. Цикл по элементам
+          for (let itemIndex = 0; itemIndex < listItems.length; itemIndex++) {
+            // Заново находим элементы после каждого возврата к списку
+            const currentSectionPanel = document.querySelector(`[data-purpose="section-panel-${sectionIndex}"]`);
+            const currentItemsList = currentSectionPanel?.querySelector('.ud-unstyled-list');
+            const currentListItems = currentItemsList?.querySelectorAll('li');
+            
+            if (!currentListItems || itemIndex >= currentListItems.length) {
+              console.warn(`Не удалось найти элемент ${itemIndex} в секции ${sectionTitle}`);
+              continue;
+            }
+            
+            const listItem = currentListItems[itemIndex];
+            
+            // Проверяем, содержит ли элемент кнопку "Resources" (элементы только с ресурсами, без видео)
+            const resourcesButton = listItem.querySelector('button[aria-label="Resource list"]');
+            if (resourcesButton) {
+              console.log(`Пропускаем элемент только с ресурсами: ${itemIndex}`);
+              continue;
+            }
+            
+            // Проверяем, содержит ли элемент слово "Quiz"
+            const itemTitle = listItem.querySelector('[data-purpose="item-title"]')?.textContent?.trim() || '';
+            if (itemTitle.toLowerCase().includes('quiz')) {
+              console.log(`Пропускаем элемент с Quiz: ${itemTitle}`);
+              continue;
+            }
+            
+            try {
+              // 7. Получаем заголовок элемента
+              const itemTitle = listItem.querySelector('[data-purpose="item-title"]')?.textContent?.trim() || `Элемент ${itemIndex + 1}`;
+              console.log(`Обрабатываем элемент: ${itemTitle}`);
+              
+              // Отправляем прогресс элемента
+              chrome.runtime.sendMessage({
+                type: 'PROGRESS_UPDATE',
+                data: {
+                  currentSection: sectionIndex + 1,
+                  totalSections: sectionPanels.length,
+                  currentItem: itemIndex + 1,
+                  totalItems: listItems.length,
+                  sectionTitle: sectionTitle,
+                  itemTitle: itemTitle,
+                  status: 'Обработка элемента'
+                }
+              });
+
+              // 8. Кликаем на элемент
+              const itemTitleElement = listItem.querySelector('[data-purpose="item-title"]');
+              if (itemTitleElement) {
+                await safeClick(itemTitleElement, `элемент "${itemTitle}"`);
+              } else {
+                console.warn(`Не найден элемент с data-purpose="item-title" для "${itemTitle}"`);
+                // Fallback - кликаем на весь li
+                await safeClick(listItem, `элемент "${itemTitle}"`);
+              }
+              
+              // Пауза 2 секунды
+              await new Promise(resolve => setTimeout(resolve, 2000));
+
+              // 9. Ищем видео
+              const videoUrl = await findVideoUrl();
+
+              // 10-12. Работаем с транскриптом
+              const transcript = await extractTranscript();
+
+              // Сохраняем данные элемента
+              sectionData.items.push({
+                title: itemTitle,
+                videoUrl: videoUrl,
+                transcript: transcript,
+                dataPurpose: listItem.getAttribute('data-purpose') || `item-${itemIndex}`
+              });
+
+              console.log(`Элемент ${itemTitle} обработан. Видео: ${videoUrl ? 'найдено' : 'не найдено'}, Транскрипт: ${transcript.length} символов`);
+              
+              // Возвращаемся к списку секций после каждого элемента
+              await returnToCourseContent();
+              
+            } catch (itemError) {
+              console.error(`Ошибка при обработке элемента ${itemIndex}:`, itemError);
+              // Продолжаем с следующим элементом
+              continue;
+            }
+          }
+        }
+
+        courseData.sections.push(sectionData);
+        
+      } catch (sectionError) {
+        console.error(`Ошибка при обработке секции ${sectionIndex}:`, sectionError);
+        // Продолжаем со следующей секцией
+        continue;
+      }
+    }
+
+    console.log('Парсинг курса завершен');
+    return courseData;
+
   } catch (error) {
-    console.error("Ошибка при извлечении секций", error);
-    return { success: false, error: error.message };
+    console.error('Ошибка при парсинге курса:', error);
+    return { error: error.message };
   }
 }
