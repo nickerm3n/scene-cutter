@@ -1,210 +1,247 @@
-# Course Parser - Video Course Processing System
+# Course Parser - Система обработки курсов
 
-Updated system for automatic video processing from CSV files with m3u8 conversion and scene detection support.
+Полная система для извлечения, обработки и анализа видео-курсов с поддержкой автоматической детекции сцен и генерации отчетов.
 
-## Features
-
-- 📁 Read video list from CSV file
-- 🎬 Convert m3u8 links to MP4 video
-- 🔍 Automatic scene detection in video
-- 📸 Extract key frames from each scene
-- 📄 Generate HTML reports
-- 📊 Detailed statistics and logging
-
-## File Structure
+## Архитектура проекта
 
 ```
 course-parser/
-├── playlist.csv              # CSV file with modules and links
-├── pipeline.py               # Main pipeline script
-├── m3u8_converter.py         # m3u8 to MP4 converter
-├── scene_detector.py         # Scene detector
-├── batch_processor.py        # Batch processor (deprecated)
-└── README.md                 # This documentation
+├── browser-extension/          # Расширение браузера для парсинга курсов
+├── microservice/               # Микросервис для приема и обработки данных
+├── video-pipeline/             # Пайплайн для обработки видео
+├── playlist.csv               # Пример CSV файла с данными курса
+├── playlist2.csv              # Расширенный пример CSV
+└── README.md                  # Документация проекта
 ```
 
-## CSV File Format
+## Компоненты системы
 
-Create a `playlist.csv` file in the following format:
+### 1. Browser Extension (`browser-extension/`)
+Расширение браузера для автоматического извлечения данных курса:
+- Парсинг структуры курса
+- Извлечение ссылок на видео (m3u8)
+- Получение транскриптов
+- Отправка данных на микросервис
 
-```csv
-Module,Link,Transcript
-"7. Creating a Free Gemini AI API Token","https://example.com/video1.m3u8","Video transcript text here..."
-"8. Advanced API Usage","https://example.com/video2.m3u8","Another video transcript..."
-```
+### 2. Microservice (`microservice/`)
+Flask-микросервис для приема и обработки данных:
+- Прием данных от расширения браузера
+- Интеграция с видео-пайплайном
+- API для обработки видео
+- Логирование и мониторинг
 
-**Note:** The `Transcript` column is optional. If provided, the transcript will be included in the HTML report above the scene information.
+### 3. Video Pipeline (`video-pipeline/`)
+Система обработки видео с поддержкой:
+- Конвертация m3u8 в MP4
+- Автоматическая детекция сцен
+- Извлечение ключевых кадров
+- Генерация HTML отчетов с транскриптами
+- Работа с JSON данными вместо CSV
 
-## Usage
+## Быстрый старт
 
-### Basic Launch
+### 1. Установка зависимостей
 
 ```bash
-# Process all modules from playlist.csv
-python3 pipeline.py
+# Зависимости для микросервиса
+cd microservice
+pip install -r requirements.txt
+
+# Зависимости для пайплайна
+cd ../video-pipeline
+pip install -r requirements.txt
 ```
 
-### Advanced Options
+### 2. Запуск микросервиса
 
 ```bash
-# Use different CSV file
-python3 pipeline.py -f my_playlist.csv
-
-# Specify directory for results
-python3 pipeline.py -o my_results
-
-# Start from specific module (useful for resuming)
-python3 pipeline.py --start-from 5
-
-# Process only first N modules
-python3 pipeline.py --max 10
-
-# Configure scene detection threshold
-python3 pipeline.py --threshold 10 --min-scene-len 1.0
-
-# Extract clips and keep temporary files
-python3 pipeline.py --extract-clips --keep-temp
-
-# Full configuration
-python3 pipeline.py \
-  -f my_playlist.csv \
-  -o results \
-  --threshold 5 \
-  --extract-frames \
-  --extract-clips \
-  --frame-type middle \
-  --keep-temp
+cd microservice
+python app.py
 ```
 
-## Parameters
+Микросервис будет доступен по адресу: `http://localhost:8005`
 
-### Main Parameters
+### 3. Установка расширения браузера
 
-- `-f, --file` - Path to CSV file (default: playlist.csv)
-- `-o, --output` - Directory for results
-- `--start-from` - Which module to start from (0-based)
-- `--max` - Maximum number of modules to process
+1. Откройте `chrome://extensions/`
+2. Включите "Режим разработчика"
+3. Нажмите "Загрузить распакованное расширение"
+4. Выберите папку `browser-extension/`
 
-### Conversion Parameters
+### 4. Настройка расширения
 
-- `--codec` - Video codec (copy, libx264, libx265, default: copy)
-- `--quality` - Video quality when re-encoding (0-51, default: 23)
+1. Откройте расширение в браузере
+2. В настройках укажите URL микросервиса: `http://localhost:8005`
+3. Перейдите на страницу курса
+4. Нажмите "Извлечь курс"
 
-### Scene Detection Parameters
+## Использование
 
-- `--threshold` - Scene detection threshold (1-100, default: 5)
-- `--min-scene-len` - Minimum scene length in seconds (default: 0.5)
-- `--detector` - Detector type (content, adaptive, default: content)
-- `--split-equal` - Split into N equal parts instead of detection
+### Через расширение браузера (рекомендуется)
 
-### Extraction Parameters
+1. **Извлечение данных**: Используйте расширение для парсинга курса
+2. **Автоматическая обработка**: Данные автоматически отправляются на микросервис
+3. **Результаты**: Обработанные видео и отчеты сохраняются в указанной директории
 
-- `--extract-frames` - Extract frames from scenes (default: yes)
-- `--frame-type` - Frame type (first, middle, last, best, default: middle)
-- `--extract-clips` - Extract video clips for each scene
-- `--no-html` - Don't generate HTML report
-- `--keep-temp` - Keep temporary files (converted videos)
+### Через API напрямую
 
-## Results Structure
+```bash
+# Отправка данных курса с автоматической обработкой
+curl -X POST http://localhost:8005/api/course \
+  -H "Content-Type: application/json" \
+  -d @test_course_with_pipeline.json
 
-After pipeline execution, the following structure is created:
+# Ручная обработка видео (если нужно)
+curl -X POST http://localhost:8005/api/process-video \
+  -H "Content-Type: application/json" \
+  -d @pipeline_request.json
+```
+
+### Через пайплайн напрямую
+
+```bash
+cd video-pipeline
+
+# Обработка CSV файла
+python pipeline.py -f ../playlist.csv
+
+# Обработка JSON данных
+python pipeline_api.py --data-file course_data.json
+```
+
+## API Endpoints
+
+### Микросервис (`http://localhost:8005`)
+
+- `GET /health` - Проверка работоспособности
+- `POST /api/course` - Прием данных курса
+- `POST /api/process-video` - Асинхронная обработка видео
+- `POST /api/process-video-sync` - Синхронная обработка видео
+
+### Примеры запросов
+
+**Отправка данных курса с автоматической обработкой:**
+```json
+{
+  "course_data": {
+    "title": "Название курса",
+    "url": "https://example.com/course",
+    "extractedAt": "2024-01-15T15:30:45.123Z",
+    "sections": [
+      {
+        "title": "Секция 1",
+        "items": [
+          {
+            "title": "Урок 1",
+            "videoUrl": "https://example.com/video.m3u8",
+            "transcript": "Текст транскрипта...",
+            "dataPurpose": "item-1"
+          }
+        ]
+      }
+    ]
+  },
+  "pipeline_config": {
+    "output_dir": "results",
+    "threshold": 5.0,
+    "min_scene_len": 0.5,
+    "extract_clips": false,
+    "keep_temp": false,
+    "max_modules": 10
+  }
+}
+```
+
+**Обработка видео:**
+```json
+{
+  "course_data": { /* данные курса */ },
+  "pipeline_config": {
+    "output_dir": "results",
+    "threshold": 5.0,
+    "min_scene_len": 0.5,
+    "extract_clips": false,
+    "keep_temp": true,
+    "max_modules": 10
+  }
+}
+```
+
+## Результаты обработки
+
+После обработки создается структура:
 
 ```
-pipeline_output_YYYYMMDD_HHMMSS/
+output_directory/
 ├── Module_Name_1/
-│   ├── Module_Name_1.mp4          # Converted video (if --keep-temp)
+│   ├── Module_Name_1.mp4          # Конвертированное видео (если keep_temp=true)
 │   └── scenes/
-│       ├── frames/                 # Extracted frames
+│       ├── frames/                 # Извлеченные кадры
 │       │   ├── scene_001_00h00m00s.jpg
-│       │   ├── scene_002_00h01m19s.jpg
 │       │   └── ...
-│       ├── clips/                  # Video clips (if --extract-clips)
-│       ├── scenes_metadata.json    # Scene metadata
-│       └── summary.html           # HTML report with transcript (if provided)
+│       ├── clips/                  # Видео клипы (если extract_clips=true)
+│       ├── scenes_metadata.json    # Метаданные сцен
+│       └── summary.html           # HTML отчет с транскриптом
 ├── Module_Name_2/
 │   └── ...
-├── pipeline.log                   # Detailed execution log
-└── pipeline_report.txt            # Final report
+├── pipeline.log                   # Лог выполнения
+└── pipeline_report.txt            # Финальный отчет
 ```
 
-## Usage Examples
-
-### Process one module for testing
+## Тестирование
 
 ```bash
-python3 pipeline.py --max 1
+# Тест микросервиса
+cd microservice
+python test_pipeline_integration.py
+
+# Тест пайплайна
+cd ../video-pipeline
+python pipeline_api.py --data-file ../test_course.json
 ```
 
-### Resume processing from module 5
+## Конфигурация
 
-```bash
-python3 pipeline.py --start-from 5
-```
+### Параметры пайплайна
 
-### Process with lecture settings
+- `threshold` - Порог детекции сцен (1-100, по умолчанию: 5)
+- `min_scene_len` - Минимальная длина сцены в секундах (по умолчанию: 0.5)
+- `extract_frames` - Извлекать кадры из сцен (по умолчанию: true)
+- `extract_clips` - Извлекать видео клипы (по умолчанию: false)
+- `keep_temp` - Сохранять временные файлы (по умолчанию: false)
+- `generate_html` - Генерировать HTML отчеты (по умолчанию: true)
 
-```bash
-python3 pipeline.py \
-  --threshold 3 \
-  --min-scene-len 2.0 \
-  --extract-frames \
-  --frame-type middle \
-  --extract-clips \
-  --keep-temp
-```
+### Настройки микросервиса
 
-### Process with equal splitting
+- Порт: 8005 (изменяется в `microservice/app.py`)
+- Таймаут обработки: 1 час
+- Логирование: в консоль и файлы
 
-```bash
-python3 pipeline.py --split-equal 20
-```
-
-## Requirements
+## Требования
 
 - Python 3.7+
 - FFmpeg
+- Chrome/Chromium браузер
 - PySceneDetect
 - OpenCV
+- Flask
 
-### Install Dependencies
+## Установка зависимостей
 
 ```bash
 # FFmpeg (macOS)
 brew install ffmpeg
 
-# Python dependencies
-pip install scenedetect[opencv] opencv-python
+# Python зависимости
+pip install scenedetect[opencv] opencv-python flask requests
 ```
 
-## Logging
+## Поддержка
 
-The system creates detailed logs:
+- **Логи**: Проверяйте файлы `pipeline.log` и консоль микросервиса
+- **Ошибки**: Детальная информация в логах и HTTP ответах
+- **Производительность**: Рекомендуется обрабатывать не более 10-20 модулей одновременно
 
-- `pipeline.log` - Detailed execution log
-- `pipeline_report.txt` - Final report with statistics
-- Console output with real-time progress
+## Лицензия
 
-## HTML Reports
-
-The system generates HTML reports for each module containing:
-
-- **Header section** with video information and scene count
-- **Transcript section** (if provided in CSV) with formatted text
-- **Scene sections** with timestamps, duration, and frame previews
-- **Responsive design** with clean styling
-
-The transcript is displayed in a scrollable section above the scene information, making it easy to read and reference while viewing the scene breakdown.
-
-## Error Handling
-
-- System continues working even with errors in individual modules
-- Detailed error information is written to log
-- Ability to resume from any module
-- Timeouts to prevent hanging
-
-## Performance
-
-- Parallel processing not supported (for stability)
-- Recommended to process no more than 10-20 modules at once
-- Processing time depends on video size and detection settings
-- Average time: 1-3 minutes per module
+MIT License

@@ -182,21 +182,35 @@ async function parseFullCourse(maxSections = 1) {
       for (const selector of videoSelectors) {
         const videoElement = await waitForElement(selector, 5000);
         if (videoElement) {
+          let videoUrl = null;
+          
           // Если это source элемент
           if (videoElement.tagName === 'SOURCE') {
-            if (videoElement.src) {
-              return videoElement.src;
-            }
+            videoUrl = videoElement.src;
           }
           // Если это video элемент
           else if (videoElement.tagName === 'VIDEO') {
             const sourceElement = videoElement.querySelector('source');
             if (sourceElement && sourceElement.src) {
-              return sourceElement.src;
+              videoUrl = sourceElement.src;
+            } else if (videoElement.src) {
+              videoUrl = videoElement.src;
             }
-            // Проверяем src самого video элемента
-            if (videoElement.src) {
-              return videoElement.src;
+          }
+
+          if (videoUrl) {
+            console.log('Найден видео URL:', videoUrl);
+            
+            // Если это blob URL, заменяем на обычный URL
+            if (videoUrl.startsWith('blob:')) {
+              console.log('Обнаружен blob URL, заменяем на обычный URL...');
+              // Заменяем blob URL на обычный URL для Udemy
+              const udemyVideoUrl = videoUrl.replace('blob:https://epam.udemy.com/', 'https://epam.udemy.com/');
+              console.log('Заменен на:', udemyVideoUrl);
+              return udemyVideoUrl;
+            } else {
+              // Если это обычный URL, возвращаем его
+              return videoUrl;
             }
           }
         }

@@ -1,3 +1,5 @@
 **/pipeline_output*
 **/batch_output*
 .DS_Store
+**/video-pipeline/pipeline_output*
+**/video-pipeline/__pycache__*

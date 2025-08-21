@@ -1,0 +1,52 @@
+{
+  "title": "Тестовый курс по Python",
+  "url": "https://example.com/course/python-basics",
+  "extractedAt": "2024-01-15T15:30:45.123Z",
+  "sections": [
+    {
+      "title": "Введение в Python",
+      "items": [
+        {
+          "title": "Что такое Python",
+          "videoUrl": "https://epam.udemy.com/assets/65239373/files/2025-05-19_13-24-39-e9b0432abed617654f061458eba3c9a6/2/aa00ec69985284ee7aa555e8a3d2c689505c.m3u8?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXRoIjoiMjAyNS0wNS0xOV8xMy0yNC0zOS1lOWIwNDMyYWJlZDYxNzY1NGYwNjE0NThlYmEzYzlhNi8yLyIsImV4cCI6MTc1NTI4OTIzNH0.R0JMG9VJNNioGiDic0xrOa86hERGpmdJgemCBuC4SuM&provider=cloudfront&v=1",
+          "transcript": "I'm super excited to discuss this piece of the course with you, because I believe that if you understand this specific video, then you're gonna have a very, very good mental model about how agents work and what you can do with them. So I hope you will like it and that you will understand it, because this will open us the mental way to think about how agents work and how MSPs work.",
+          "dataPurpose": "item-1"
+        },
+        {
+          "title": "Установка Python",
+          "videoUrl": "https://example.com/video2.m3u8",
+          "transcript": "Для установки Python скачайте его с официального сайта python.org. Выберите версию Python 3.x, которая является самой современной и стабильной версией языка программирования.",
+          "dataPurpose": "item-2"
+        }
+      ]
+    },
+    {
+      "title": "Основы программирования",
+      "items": [
+        {
+          "title": "Переменные и типы данных",
+          "videoUrl": "https://example.com/video3.m3u8",
+          "transcript": "Переменные в Python не требуют объявления типа. Python автоматически определяет тип данных на основе присваиваемого значения. Основные типы данных включают числа, строки, списки, словари и булевы значения.",
+          "dataPurpose": "item-3"
+        },
+        {
+          "title": "Условные операторы",
+          "videoUrl": "https://example.com/video4.m3u8",
+          "transcript": "Условные операторы позволяют выполнять различный код в зависимости от условий. В Python используются операторы if, elif и else для создания ветвлений в программе.",
+          "dataPurpose": "item-4"
+        }
+      ]
+    },
+    {
+      "title": "Работа с данными",
+      "items": [
+        {
+          "title": "Списки и кортежи",
+          "videoUrl": "https://example.com/video5.m3u8",
+          "transcript": "Списки и кортежи - это коллекции данных в Python. Списки изменяемы, а кортежи неизменяемы. Оба типа данных позволяют хранить элементы разных типов и обращаться к ним по индексу.",
+          "dataPurpose": "item-5"
+        }
+      ]
+    }
+  ]
+}
