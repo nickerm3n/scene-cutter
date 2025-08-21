@@ -3,3 +3,8 @@
 .DS_Store
 **/video-pipeline/pipeline_output*
 **/video-pipeline/__pycache__*
+**/video-pipeline/node_modules*
+**/video-pipeline/.env*
+**/video-pipeline/package-lock.json*
+**/video-pipeline/processed_course*
+**/video-pipeline/course_output_*

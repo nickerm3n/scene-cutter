@@ -1,0 +1,41 @@
+{
+  "name": "course-content-pipeline",
+  "version": "1.0.0",
+  "description": "Pipeline for processing course content through LLM with template-based regeneration",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "test:single": "tsx src/test-single-module.ts",
+    "test:parsing": "tsx src/test-parsing.ts",
+    "test:simple": "tsx src/simple-test.ts",
+    "test:basic": "tsx src/basic-test.ts",
+    "test:html": "tsx src/test-html-parsing.ts",
+    "test:llm": "tsx src/test-single-with-llm.ts",
+    "start:simple": "tsx src/simple-index.ts"
+  },
+  "dependencies": {
+    "@langchain/openai": "^0.0.14",
+    "@langchain/community": "^0.0.20",
+    "langchain": "^0.1.0",
+    "cheerio": "^1.0.0-rc.12",
+    "fs-extra": "^11.2.0",
+    "zod": "^3.22.4",
+    "dotenv": "^16.3.1",
+    "undici": "^5.28.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/fs-extra": "^11.0.4",
+    "typescript": "^5.3.2",
+    "tsx": "^4.6.2",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.8"
+  },
+  "keywords": ["course", "llm", "pipeline", "content-processing"],
+  "author": "",
+  "license": "MIT"
+}
