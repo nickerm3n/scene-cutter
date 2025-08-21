@@ -6,10 +6,12 @@ TypeScript-based pipeline for processing course content through LLM with templat
 
 - 📚 **Module Processing**: Automatically processes course modules from video transcripts
 - 🤖 **LLM Integration**: Uses OpenAI GPT-4 for content regeneration
+- 🖼️ **Vision Processing**: Integrates images and visual content using GPT-4o
 - 📄 **HTML Parsing**: Extracts transcripts from HTML files with structured content
 - 🎯 **Template-Based**: Follows customizable markdown templates
 - 📁 **Batch Processing**: Processes multiple modules with progress tracking
 - 💾 **Structured Output**: Generates organized markdown files with metadata
+- ⏰ **Timestamp Matching**: Matches images with transcript timestamps
 
 ## Quick Start
 
@@ -48,8 +50,14 @@ npm run test:html
 # Test single module with LLM (requires API key)
 npm run test:llm
 
+# Test vision processing with images (requires API key)
+npm run test:vision
+
 # Run full pipeline
 npm run start:simple
+
+# Run vision-enhanced pipeline
+npm run start:vision
 ```
 
 ## Project Structure
@@ -63,9 +71,11 @@ video-pipeline/
 │   │   └── simple-html-parser.ts # HTML parsing without external deps
 │   ├── services/                 # LLM and content processing services
 │   │   ├── simple-llm-service.ts # OpenAI API integration
-│   │   └── simple-content-processor.ts # Main processing logic
+│   │   ├── simple-content-processor.ts # Main processing logic
+│   │   └── vision-processor.ts   # Vision-enhanced processing
 │   ├── index.ts                  # Main pipeline (with LangChain)
 │   ├── simple-index.ts           # Simplified main pipeline
+│   ├── vision-index.ts           # Vision-enhanced pipeline
 │   └── test-*.ts                 # Test scripts
 ├── template.md                   # Content generation template
 ├── package.json                  # Dependencies and scripts
@@ -78,7 +88,9 @@ video-pipeline/
 - `npm run test:basic` - Test basic file operations
 - `npm run test:html` - Test HTML parsing functionality
 - `npm run test:llm` - Test single module with LLM processing
+- `npm run test:vision` - Test vision-enhanced processing with images
 - `npm run start:simple` - Run full pipeline with simplified components
+- `npm run start:vision` - Run vision-enhanced pipeline with image processing
 - `npm run dev` - Run original pipeline (requires LangChain)
 - `npm run build` - Build TypeScript to JavaScript
 
@@ -130,9 +142,17 @@ processed_course/
 ### LLM Configuration
 
 The pipeline uses the following LLM settings:
-- **Model**: `gpt-4-turbo-preview`
+- **Model**: `gpt-4-turbo-preview` (standard) / `gpt-4o` (vision)
 - **Temperature**: `0.3` (balanced creativity and consistency)
 - **Max Tokens**: `4000` (per chunk)
+
+### Vision Processing
+
+The vision-enhanced pipeline includes:
+- **Image Extraction**: Automatically extracts frames from video content
+- **Timestamp Matching**: Matches images with transcript timestamps
+- **Contextual Placement**: Places images where they enhance understanding
+- **Markdown Integration**: Embeds images using proper markdown syntax
 
 ## Customization
 
@@ -163,6 +183,16 @@ The pipeline processes content in the following order:
 4. **Content Assembly**: Combines processed chunks into final markdown
 5. **Output Generation**: Saves structured content to files
 
+### Vision Processing Logic
+
+The vision-enhanced pipeline adds:
+
+1. **Image Extraction**: Extracts frames from video content
+2. **Timestamp Matching**: Matches images with transcript timestamps
+3. **Vision Analysis**: Analyzes images with GPT-4o vision capabilities
+4. **Contextual Integration**: Places images contextually in markdown
+5. **Enhanced Output**: Generates markdown with embedded image references
+
 ## Testing
 
 ### Step-by-Step Testing
@@ -176,8 +206,14 @@ The pipeline processes content in the following order:
 3. **LLM Processing**: `npm run test:llm`
    - Tests OpenAI API integration with a single module
 
-4. **Full Pipeline**: `npm run start:simple`
+4. **Vision Processing**: `npm run test:vision`
+   - Tests vision-enhanced processing with images
+
+5. **Full Pipeline**: `npm run start:simple`
    - Processes all modules in the input directory
+
+6. **Vision Pipeline**: `npm run start:vision`
+   - Processes all modules with vision capabilities
 
 ### Test Output
 

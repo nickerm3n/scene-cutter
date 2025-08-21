@@ -15,7 +15,9 @@
     "test:basic": "tsx src/basic-test.ts",
     "test:html": "tsx src/test-html-parsing.ts",
     "test:llm": "tsx src/test-single-with-llm.ts",
-    "start:simple": "tsx src/simple-index.ts"
+    "start:simple": "tsx src/simple-index.ts",
+    "start:vision": "tsx src/vision-index.ts",
+    "test:vision": "tsx src/test-vision.ts"
   },
   "dependencies": {
     "@langchain/openai": "^0.0.14",
