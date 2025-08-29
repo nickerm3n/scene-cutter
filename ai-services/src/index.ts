@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
+import fs from 'fs-extra'
 import { FileUtils } from './utils/file-utils.js'
-import { VisionProcessor } from './services/vision-processor.js'
+import { ContentProcessor } from './services/content-processor.js'
 import { PipelineConfig, CourseModule } from './types/index.js'
 
 // Load environment variables
@@ -12,7 +13,7 @@ async function main() {
     
     // Configuration
     const config: PipelineConfig = {
-      inputDir: process.env.INPUT_DIR || 'course_output_20250821_122616',
+      inputDir: process.env.INPUT_DIR || '../video-pipeline/course_output_20250821_122616',
       outputDir: process.env.OUTPUT_DIR || 'vision_processed_course',
       templateFile: process.env.TEMPLATE_FILE || 'template.md',
       openaiApiKey: process.env.OPENAI_API_KEY || '',
@@ -36,13 +37,27 @@ async function main() {
       throw new Error(`Input directory does not exist: ${config.inputDir}`)
     }
 
+    // Clean output directory before processing
+    console.log(`🧹 Cleaning output directory: ${config.outputDir}`)
+    try {
+      if (await FileUtils.directoryExists(config.outputDir)) {
+        await FileUtils.removeDirectory(config.outputDir)
+        console.log(`✅ Output directory cleaned: ${config.outputDir}`)
+      }
+    } catch (error) {
+      console.warn(`⚠️ Failed to clean output directory: ${error}`)
+    }
+
     // Get all module directories
     const moduleDirectories = await FileUtils.getDirectories(config.inputDir)
     console.log(`📚 Found ${moduleDirectories.length} modules`)
 
+    const filterTest = moduleDirectories.find(dir => dir.includes('5._33._Understanding_how_MCPs_Handle_Paths'))
+    const filteredModuleDirectories = filterTest ? [filterTest] : moduleDirectories
+
     // Parse modules
     const modules: CourseModule[] = []
-    for (const dirName of moduleDirectories) {
+    for (const dirName of filteredModuleDirectories) {
       try {
         const module = FileUtils.parseModuleFromDirectory(dirName, config.inputDir)
         modules.push(module)
@@ -55,8 +70,8 @@ async function main() {
     modules.sort((a, b) => a.order - b.order)
     console.log(`✅ Parsed ${modules.length} valid modules`)
 
-    // Initialize vision processor
-    const processor = new VisionProcessor(config)
+    // Initialize content processor
+    const processor = new ContentProcessor(config)
 
     // Process modules
     console.log('\n🔄 Starting vision-enhanced content processing...')

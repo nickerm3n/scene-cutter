@@ -18,7 +18,7 @@ interface TimestampedContent {
   images: ImageFrame[]
 }
 
-export class VisionProcessor {
+export class ContentProcessor {
   private config: PipelineConfig
   private model: ChatOpenAI
 
@@ -333,7 +333,7 @@ Please process this content and generate structured markdown with appropriate im
           const imageBuffer = await fs.readFile(image.imagePath)
           const base64Image = imageBuffer.toString('base64')
           
-          messages[1].content.push({
+          (messages[1].content as any[]).push({
             type: "image_url",
             image_url: {
               url: `data:image/jpeg;base64,${base64Image}`

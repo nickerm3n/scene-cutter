@@ -1,17 +1,15 @@
-# Course Content Pipeline
+# Video Processing Pipeline
 
-TypeScript-based pipeline for processing course content through LLM with template-based regeneration.
+Python-based pipeline for video processing, scene detection, and batch processing of course content.
 
 ## Features
 
-- 📚 **Module Processing**: Automatically processes course modules from video transcripts
-- 🤖 **LLM Integration**: Uses OpenAI GPT-4 for content regeneration
-- 🖼️ **Vision Processing**: Integrates images and visual content using GPT-4o
-- 📄 **HTML Parsing**: Extracts transcripts from HTML files with structured content
-- 🎯 **Template-Based**: Follows customizable markdown templates
-- 📁 **Batch Processing**: Processes multiple modules with progress tracking
-- 💾 **Structured Output**: Generates organized markdown files with metadata
-- ⏰ **Timestamp Matching**: Matches images with transcript timestamps
+- 🎥 **Video Processing**: M3U8 to MP4 conversion and video analysis
+- 🎬 **Scene Detection**: Automatic scene detection and segmentation
+- 📊 **Batch Processing**: Process multiple videos with progress tracking
+- 🔧 **API Integration**: RESTful API for pipeline operations
+- 📁 **File Management**: Organized output structure with metadata
+- ⚡ **Performance**: Optimized for large video files
 
 ## Quick Start
 
@@ -19,68 +17,47 @@ TypeScript-based pipeline for processing course content through LLM with templat
 
 ```bash
 cd video-pipeline
-npm install
+pip install -r requirements.txt
 ```
 
 ### 2. Configure Environment
 
-Copy the environment template and configure your API keys:
+Set up your environment variables:
 
 ```bash
-cp env.example .env
+export INPUT_DIR=course_output_20250821_122616
+export OUTPUT_DIR=processed_course
 ```
 
-Edit `.env` file:
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-INPUT_DIR=course_output_20250821_122616
-OUTPUT_DIR=processed_course
-TEMPLATE_FILE=template.md
-```
-
-### 3. Test the Pipeline
+### 3. Run the Pipeline
 
 ```bash
-# Test basic file operations
-npm run test:basic
+# Run video processing
+python pipeline.py
 
-# Test HTML parsing
-npm run test:html
+# Run scene detection
+python scene_detector.py
 
-# Test single module with LLM (requires API key)
-npm run test:llm
+# Run batch processing
+python batch_processor.py
 
-# Test vision processing with images (requires API key)
-npm run test:vision
-
-# Run full pipeline
-npm run start:simple
-
-# Run vision-enhanced pipeline
-npm run start:vision
+# Start API server
+python pipeline_api.py
 ```
 
 ## Project Structure
 
 ```
 video-pipeline/
-├── src/
-│   ├── types/                    # TypeScript interfaces
-│   ├── utils/                    # File and HTML parsing utilities
-│   │   ├── file-utils.ts         # File system operations
-│   │   └── simple-html-parser.ts # HTML parsing without external deps
-│   ├── services/                 # LLM and content processing services
-│   │   ├── simple-llm-service.ts # OpenAI API integration
-│   │   ├── simple-content-processor.ts # Main processing logic
-│   │   └── vision-processor.ts   # Vision-enhanced processing
-│   ├── index.ts                  # Main pipeline (with LangChain)
-│   ├── simple-index.ts           # Simplified main pipeline
-│   ├── vision-index.ts           # Vision-enhanced pipeline
-│   └── test-*.ts                 # Test scripts
+├── pipeline.py                   # Main video processing pipeline
+├── scene_detector.py             # Scene detection and analysis
+├── batch_processor.py            # Batch processing utilities
+├── m3u8_converter.py             # M3U8 to MP4 conversion
+├── pipeline_api.py               # RESTful API server
+├── requirements.txt              # Python dependencies
 ├── template.md                   # Content generation template
-├── package.json                  # Dependencies and scripts
-├── tsconfig.json                 # TypeScript configuration
-└── env.example                   # Environment variables template
+├── processed_course/             # Output directory
+└── course_output_20250821_122616/ # Input directory
 ```
 
 ## Available Scripts

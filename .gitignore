@@ -9,3 +9,5 @@
 **/video-pipeline/processed_course*
 **/video-pipeline/course_output_*
 **/video-pipeline/vision_test_output*
+**/ai-services/processed_course*
+**/ai-services/node_modules*

@@ -74,6 +74,14 @@ export class FileUtils {
     }
   }
 
+  static async removeDirectory(dirPath: string): Promise<void> {
+    try {
+      await fs.remove(dirPath)
+    } catch (error) {
+      throw new Error(`Failed to remove directory ${dirPath}: ${error}`)
+    }
+  }
+
   static parseModuleFromDirectory(dirName: string, basePath: string): CourseModule {
     // Parse directory name like "1._28._Third-Party_MCP_Hubs"
     const match = dirName.match(/^(\d+)\._(\d+)\._(.+)$/)
