@@ -11,3 +11,4 @@
 **/video-pipeline/vision_test_output*
 **/ai-services/processed_course*
 **/ai-services/node_modules*
+**/ai-services/.env
